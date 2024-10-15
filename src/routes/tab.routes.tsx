@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import Home from "src/screens/Home";
-import New from "src/screens/New";
+import TeamMenbers from "src/screens/Team";
 import { View, Text } from 'react-native';
 
 const Tab = createBottomTabNavigator();
@@ -41,11 +41,11 @@ export default function TabRoutes() {
                 }}
             />
             <Tab.Screen
-                name="new"
-                component={New}
+                name="team"
+                component={TeamMenbers}
                 options={{
                     tabBarIcon: ({ color, size }) => (
-                        <CustomTabBarIcon iconName="plus" label="Novo" color={color} size={size} />
+                        <CustomTabBarIcon iconName="users" label="Team" color={color} size={size} />
                     ),
                 }}
             />
