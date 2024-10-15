@@ -1,17 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  FlatList,
-  Text,
-  TextInput,
-  View,
-  SafeAreaView,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-} from "react-native";
-import { Task, Tasks } from "@hooks/useGetTasks";
+import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
+import { Task, Tasks } from "@data/data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
@@ -28,8 +17,6 @@ export default function Home() {
     desc: "",
     initDate: "",
     endDate: "",
-    dificult: "",
-    TeamMembers: "",
   });
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -45,9 +32,7 @@ export default function Home() {
   useEffect(() => {
     const filtered = tasks
       .filter((task) => task.name.toLowerCase().includes(text.toLowerCase()))
-      .sort((a, b) => {
-        return a.name.localeCompare(b.name, undefined, { numeric: true });
-      });
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     setFilteredTasks(filtered);
   }, [text, tasks]);
@@ -91,12 +76,10 @@ export default function Home() {
         desc: "",
         initDate: "",
         endDate: "",
-        dificult: "",
-        TeamMembers: "",
       });
       setLoading(false);
       showMessage("Tarefa criada com sucesso!");
-    }, 5000);
+    }, 500);
   };
 
   const handleEditTask = () => {
@@ -111,7 +94,7 @@ export default function Home() {
         setFilteredTasks(updatedTasks);
         setLoading(false);
         showMessage("Tarefa editada com sucesso!");
-      }, 5000);
+      }, 500);
     }
   };
 
@@ -124,9 +107,8 @@ export default function Home() {
       setFilteredTasks(updatedTasks);
       setLoading(false);
       showMessage("Tarefa excluída com sucesso!");
-    }, 5000); // Mantenha o mesmo delay da função de edição
+    }, 500);
   };
-
 
   const renderItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
@@ -140,8 +122,6 @@ export default function Home() {
       <Text>{item.desc}</Text>
       <Text>Início: {item.initDate}</Text>
       <Text>Fim: {item.endDate}</Text>
-      <Text>Dificuldade: {item.dificult}</Text>
-      <Text>Membros da Equipe: {item.TeamMembers}</Text>
     </TouchableOpacity>
   );
 
@@ -152,7 +132,6 @@ export default function Home() {
         <Text style={styles.headerText}>My Tasks</Text>
       </View>
 
-      {/* Header */}
       <View style={styles.searchContainer}>
         <TextInput
           onChangeText={onChangeText}
@@ -168,7 +147,6 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      {/* Container dos cards */}
       <FlatList
         style={styles.flatList}
         contentContainerStyle={styles.flatListContent}
@@ -196,7 +174,6 @@ export default function Home() {
         </Modal>
       )}
 
-      {/* Modal de Criação */}
       <Modal
         transparent={true}
         animationType="fade"
@@ -208,10 +185,7 @@ export default function Home() {
           onPress={() => setCreateTaskModal(false)}
           style={styles.modalBackground}
         >
-          <View
-            style={styles.modalContainer}
-            onStartShouldSetResponder={() => true}
-          >
+          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Create New Task</Text>
             <TextInput
               placeholder="Task Name"
@@ -229,9 +203,7 @@ export default function Home() {
             />
             <TextInput
               placeholder="Start Date (YYYY-MM-DD)"
-              onChangeText={(text) =>
-                setNewTask({ ...newTask, initDate: text })
-              }
+              onChangeText={(text) => setNewTask({ ...newTask, initDate: text })}
               value={newTask.initDate}
               style={styles.modalInput}
               editable={!loading}
@@ -240,24 +212,6 @@ export default function Home() {
               placeholder="End Date (YYYY-MM-DD)"
               onChangeText={(text) => setNewTask({ ...newTask, endDate: text })}
               value={newTask.endDate}
-              style={styles.modalInput}
-              editable={!loading}
-            />
-            <TextInput
-              placeholder="Difficulty"
-              onChangeText={(text) =>
-                setNewTask({ ...newTask, dificult: text })
-              }
-              value={newTask.dificult}
-              style={styles.modalInput}
-              editable={!loading}
-            />
-            <TextInput
-              placeholder="Team Members"
-              onChangeText={(text) =>
-                setNewTask({ ...newTask, TeamMembers: text })
-              }
-              value={newTask.TeamMembers}
               style={styles.modalInput}
               editable={!loading}
             />
@@ -280,7 +234,6 @@ export default function Home() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Modal de Edição */}
       <Modal
         transparent={true}
         animationType="fade"
@@ -292,11 +245,7 @@ export default function Home() {
           onPress={() => !loading && setEditTaskModal(false)}
           style={styles.modalBackground}
         >
-          <View
-            style={styles.modalContainer}
-            onStartShouldSetResponder={() => true}
-          >
-
+          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Task</Text>
               <TouchableOpacity
@@ -306,67 +255,33 @@ export default function Home() {
                 <Icon name="close" size={24} color="#000" />
               </TouchableOpacity>
             </View>
-
-
             {currentTask && (
               <>
                 <TextInput
-                  placeholder="Task ID"
-                  value={currentTask.id.toString()}
-                  editable={false}
-                  style={styles.modalInput}
-                />
-                <TextInput
                   placeholder="Task Name"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, name: text })
-                  }
+                  onChangeText={(text) => setCurrentTask({ ...currentTask, name: text })}
                   value={currentTask.name}
                   style={styles.modalInput}
                   editable={!loading}
                 />
                 <TextInput
                   placeholder="Description"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, desc: text })
-                  }
+                  onChangeText={(text) => setCurrentTask({ ...currentTask, desc: text })}
                   value={currentTask.desc}
                   style={styles.modalInput}
                   editable={!loading}
                 />
                 <TextInput
                   placeholder="Start Date (YYYY-MM-DD)"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, initDate: text })
-                  }
+                  onChangeText={(text) => setCurrentTask({ ...currentTask, initDate: text })}
                   value={currentTask.initDate}
                   style={styles.modalInput}
                   editable={!loading}
                 />
                 <TextInput
                   placeholder="End Date (YYYY-MM-DD)"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, endDate: text })
-                  }
+                  onChangeText={(text) => setCurrentTask({ ...currentTask, endDate: text })}
                   value={currentTask.endDate}
-                  style={styles.modalInput}
-                  editable={!loading}
-                />
-                <TextInput
-                  placeholder="Difficulty"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, dificult: text })
-                  }
-                  value={currentTask.dificult}
-                  style={styles.modalInput}
-                  editable={!loading}
-                />
-                <TextInput
-                  placeholder="Team Members"
-                  onChangeText={(text) =>
-                    setCurrentTask({ ...currentTask, TeamMembers: text })
-                  }
-                  value={currentTask.TeamMembers}
                   style={styles.modalInput}
                   editable={!loading}
                 />
@@ -376,15 +291,14 @@ export default function Home() {
                     onPress={handleEditTask}
                     disabled={loading}
                   >
-                    <Text style={styles.modalActionButtonText}>
-                      Save Changes
-                    </Text>
+                    <Text style={styles.modalActionButtonText}>Save</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteTask(currentTask.id)}
+                    style={styles.modalCancelButton}
+                    onPress={() => currentTask && handleDeleteTask(currentTask.id)}
+                    disabled={loading}
                   >
-                    <Text style={styles.deleteButtonText}>Excluir</Text>
+                    <Text style={styles.modalCancelButtonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -400,154 +314,146 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#fff',
   },
   header: {
     height: 80,
-    backgroundColor: "#fff",
     justifyContent: "flex-end",
     alignItems: "center",
     paddingVertical: 10,
+    backgroundColor: '#6200ea',
   },
   headerText: {
-    fontSize: 18,
-    fontWeight: "bold",
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   searchContainer: {
-    padding: 16,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    height: "auto",
   },
   input: {
-    height: 40,
-    borderColor: "#ccc",
+    width: '100%',
     borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 10,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 16,
     marginBottom: 10,
+    height: 40,
   },
   createButton: {
-    backgroundColor: "#000",
-    padding: 10,
-    borderRadius: 4,
+    width: '100%',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#6200ea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
   },
   buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
+    fontSize: 16,
+    color: '#fff',
   },
   flatList: {
     flex: 1,
   },
   flatListContent: {
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   taskItem: {
-    backgroundColor: "#fff",
-    padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    borderRadius: 4,
-    elevation: 1,
+    backgroundColor: '#fff',
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
   taskTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  deleteButton: {
-    backgroundColor: "#ff4d4d",
-    padding: 10,
-    borderRadius: 4,
-    flex: 1,
-    marginLeft: 5,
-  },
-  deleteButtonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  messageContainer: {
-    backgroundColor: "#dff0d8",
-    padding: 10,
-    margin: 10,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  messageText: {
-    color: "#3c763d",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    fontWeight: 'bold',
+    marginBottom: 5,
   },
   modalBackground: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContainer: {
-    width: 300,
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    borderRadius: 8,
     padding: 20,
-    elevation: 10,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-  },
-  modalInput: {
-    height: 40,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 10
-  },
-  modalActionButton: {
-    backgroundColor: "#000",
-    padding: 10,
-    borderRadius: 4,
-    flex: 1,
-    marginRight: 5,
-  },
-  modalActionButtonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  modalCancelButton: {
-    backgroundColor: "#8c8c8c",
-    padding: 10,
-    flex: 1,
-    borderRadius: 4,
-  },
-  modalCancelButtonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  modalCloseButton: {
-    padding: 5,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 5,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  }
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  modalInput: {
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+    paddingVertical: 8,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalActionButton: {
+    backgroundColor: '#6200ea',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalActionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  modalCancelButton: {
+    backgroundColor: '#f44336',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalCancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  messageContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    backgroundColor: '#6200ea',
+    borderRadius: 8,
+    marginHorizontal: 20,
+  },
+  messageText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
 });
-

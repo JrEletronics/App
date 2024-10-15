@@ -11,8 +11,8 @@
       "@contexts/*": [
         "src/components/*"
       ],
-      "@hooks/*": [
-        "src/hooks/*"
+      "@data/*": [
+        "src/data/*"
       ],
       "@assets/*": [
         "src/assets/*"
