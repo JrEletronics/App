@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
 export default function Home() {
+
   const [text, onChangeText] = useState("");
   const [createTaskModal, setCreateTaskModal] = useState<boolean>(false);
   const [editTaskModal, setEditTaskModal] = useState<boolean>(false);
@@ -21,6 +22,7 @@ export default function Home() {
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [descMaxLength] = useState(200);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -196,11 +198,19 @@ export default function Home() {
             />
             <TextInput
               placeholder="Description"
-              onChangeText={(text) => setNewTask({ ...newTask, desc: text })}
+              onChangeText={(text) => {
+                if (text.length <= descMaxLength) {
+                  setNewTask({ ...newTask, desc: text });
+                }
+              }}
               value={newTask.desc}
-              style={styles.modalInput}
+              style={[styles.modalInput, styles.descInput]}
               editable={!loading}
+              multiline={true}
             />
+            <Text style={styles.charCount}>
+              {newTask.desc.length}/{descMaxLength} caracteres
+            </Text>
             <TextInput
               placeholder="Start Date (YYYY-MM-DD)"
               onChangeText={(text) => setNewTask({ ...newTask, initDate: text })}
@@ -266,11 +276,19 @@ export default function Home() {
                 />
                 <TextInput
                   placeholder="Description"
-                  onChangeText={(text) => setCurrentTask({ ...currentTask, desc: text })}
+                  onChangeText={(text) => {
+                    if (text.length <= descMaxLength) {
+                      setCurrentTask({ ...currentTask, desc: text });
+                    }
+                  }}
                   value={currentTask.desc}
-                  style={styles.modalInput}
+                  style={[styles.modalInput, styles.descInput]}
                   editable={!loading}
+                  multiline={true}
                 />
+                <Text style={styles.charCount}>
+                  {currentTask.desc.length}/{descMaxLength} caracteres
+                </Text>
                 <TextInput
                   placeholder="Start Date (YYYY-MM-DD)"
                   onChangeText={(text) => setCurrentTask({ ...currentTask, initDate: text })}
@@ -409,6 +427,15 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     paddingVertical: 8,
     marginBottom: 20,
+  },
+  descInput: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  charCount: {
+    textAlign: 'right',
+    color: '#999',
+    marginBottom: 10,
   },
   modalButtons: {
     flexDirection: 'row',

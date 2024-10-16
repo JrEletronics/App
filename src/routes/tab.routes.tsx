@@ -1,16 +1,55 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { View, Text } from 'react-native';
 import { Feather } from "@expo/vector-icons";
 import Home from "src/screens/Home";
-import TeamMenbers from "src/screens/Team";
-import { View, Text } from 'react-native';
+import TeamManagement from "src/screens/Team";
+import Services from "src/screens/Services";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator();
 
-const CustomTabBarIcon = ({ iconName, label, color, size }) => (
+const CustomTabBarIcon = ({ iconName, label, color, size, focused }) => (
     <View className="flex justify-center items-center gap-1">
         <Feather name={iconName} color={color} size={size} />
         <Text className="text-[12px] font-bold" style={{ color }}>{label}</Text>
     </View>
+);
+
+const AnimatedScreenWrapper = ({ children }) => {
+    const opacity = useSharedValue(0);
+
+    useFocusEffect(() => {
+        opacity.value = 0;
+        opacity.value = withTiming(1, { duration: 500 });
+    });
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            opacity: opacity.value,
+        };
+    });
+
+    return <Animated.View style={[{ flex: 1 }, animatedStyle]}>{children}</Animated.View>;
+};
+
+// Componentes individuais para cada tela, com a animação embutida
+const HomeScreen = () => (
+    <AnimatedScreenWrapper>
+        <Home />
+    </AnimatedScreenWrapper>
+);
+
+const TeamScreen = () => (
+    <AnimatedScreenWrapper>
+        <TeamManagement />
+    </AnimatedScreenWrapper>
+);
+
+const ServicesScreen = () => (
+    <AnimatedScreenWrapper>
+        <Services />
+    </AnimatedScreenWrapper>
 );
 
 export default function TabRoutes() {
@@ -33,19 +72,46 @@ export default function TabRoutes() {
         >
             <Tab.Screen
                 name="home"
-                component={Home}
+                component={HomeScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => (
-                        <CustomTabBarIcon iconName="home" label="Home" color={color} size={size} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <CustomTabBarIcon
+                            iconName="clipboard"
+                            label="Home"
+                            color={color}
+                            size={size}
+                            focused={focused}
+                        />
                     ),
                 }}
             />
             <Tab.Screen
                 name="team"
-                component={TeamMenbers}
+                component={TeamScreen}
                 options={{
-                    tabBarIcon: ({ color, size }) => (
-                        <CustomTabBarIcon iconName="users" label="Team" color={color} size={size} />
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <CustomTabBarIcon
+                            iconName="users"
+                            label="Team"
+                            color={color}
+                            size={size}
+                            focused={focused}
+                        />
+                    ),
+                }}
+            />
+            <Tab.Screen
+                name="services"
+                component={ServicesScreen}
+                options={{
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <CustomTabBarIcon
+                            iconName="briefcase"
+                            label="Services"
+                            color={color}
+                            size={size}
+                            focused={focused}
+                        />
                     ),
                 }}
             />

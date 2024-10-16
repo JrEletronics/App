@@ -1,43 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { TeamMenber, Team } from "@data/data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Service, ServicesList } from "@data/data";
 
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
-export default function TeamManagement() {
+export default function Services() {
     const [text, onChangeText] = useState("");
-    const [createMemberModal, setCreateMemberModal] = useState<boolean>(false);
-    const [editMemberModal, setEditMemberModal] = useState<boolean>(false);
-    const [team, setTeam] = useState<TeamMenber[]>(Team);
-    const [filteredTeam, setFilteredTeam] = useState<TeamMenber[]>(Team);
-    const [newMember, setNewMember] = useState<TeamMenber>({
+    const [createServiceModal, setCreateServiceModal] = useState<boolean>(false);
+    const [editServiceModal, setEditServiceModal] = useState<boolean>(false);
+    const [services, setServices] = useState<Service[]>([]);
+    const [filteredServices, setFilteredServices] = useState<Service[]>([]);
+    const [newService, setNewService] = useState<Service>({
         id: generateRandomId(),
         name: "",
-        email: "",
-        cpf: "",
-        phone: ""
+        desc: "",
     });
-    const [currentMember, setCurrentMember] = useState<TeamMenber | null>(null);
+    const [currentService, setCurrentService] = useState<Service | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<string | null>(null);
+    const [descMaxLength] = useState(200);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        setTeam(Team)
-        setFilteredTeam(team);
+        setServices(ServicesList);
+        setFilteredServices(ServicesList);
     }, []);
 
     useEffect(() => {
-        const filtered = team
-            .filter((member) =>
-                member.name.toLowerCase().includes(text.toLowerCase())
-            )
+        const filtered = services
+            .filter((service) => service.name.toLowerCase().includes(text.toLowerCase()))
             .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-        setFilteredTeam(filtered);
-    }, [text, team]);
+        setFilteredServices(filtered);
+    }, [text, services]);
 
     const clearMessage = () => {
         setTimeout(() => {
@@ -59,10 +56,10 @@ export default function TeamManagement() {
         clearMessage();
     };
 
-    const handleCreateMember = () => {
-        setCreateMemberModal(false);
+    const handleCreateService = () => {
+        setCreateServiceModal(false);
         setLoading(true);
-        const existingIds = team.map((member) => member.id);
+        const existingIds = services.map((service) => service.id);
         let newId = generateRandomId();
 
         while (existingIds.includes(newId)) {
@@ -70,60 +67,56 @@ export default function TeamManagement() {
         }
 
         setTimeout(() => {
-            setTeam([...team, { ...newMember, id: newId }]);
-            setFilteredTeam([...team, { ...newMember, id: newId }]);
-            setNewMember({
+            setServices([...services, { ...newService, id: newId }]);
+            setFilteredServices([...services, { ...newService, id: newId }]);
+            setNewService({
                 id: generateRandomId(),
                 name: "",
-                email: "",
-                cpf: "",
-                phone: ""
+                desc: "",
             });
             setLoading(false);
-            showMessage("Membro da equipe criado com sucesso!");
+            showMessage("Serviço criado com sucesso!");
         }, 500);
     };
 
-    const handleEditMember = () => {
-        setEditMemberModal(false);
+    const handleEditService = () => {
+        setEditServiceModal(false);
         setLoading(true);
-        if (currentMember) {
+        if (currentService) {
             setTimeout(() => {
-                const updatedTeam = team.map((member) =>
-                    member.id === currentMember.id ? currentMember : member
+                const updatedServices = services.map((service) =>
+                    service.id === currentService.id ? currentService : service
                 );
-                setTeam(updatedTeam);
-                setFilteredTeam(updatedTeam);
+                setServices(updatedServices);
+                setFilteredServices(updatedServices);
                 setLoading(false);
-                showMessage("Membro da equipe editado com sucesso!");
+                showMessage("Serviço editado com sucesso!");
             }, 500);
         }
     };
 
-    const handleDeleteMember = (id: number) => {
-        setEditMemberModal(false);
+    const handleDeleteService = (id: number) => {
+        setEditServiceModal(false);
         setLoading(true);
         setTimeout(() => {
-            const updatedTeam = team.filter((member) => member.id !== id);
-            setTeam(updatedTeam);
-            setFilteredTeam(updatedTeam);
+            const updatedServices = services.filter((service) => service.id !== id);
+            setServices(updatedServices);
+            setFilteredServices(updatedServices);
             setLoading(false);
-            showMessage("Membro da equipe excluído com sucesso!");
+            showMessage("Serviço excluído com sucesso!");
         }, 500);
     };
 
-    const renderItem = ({ item }: { item: TeamMenber }) => (
+    const renderItem = ({ item }: { item: Service }) => (
         <TouchableOpacity
-            style={styles.memberItem}
+            style={styles.serviceItem}
             onPress={() => {
-                setCurrentMember(item);
-                setEditMemberModal(true);
+                setCurrentService(item);
+                setEditServiceModal(true);
             }}
         >
-            <Text style={styles.memberTitle}>{item.name}</Text>
-            <Text>Email: {item.email}</Text>
-            <Text>CPF: {item.cpf}</Text>
-            <Text>Telefone: {item.phone}</Text>
+            <Text style={styles.serviceTitle}>{item.name}</Text>
+            <Text>{item.desc}</Text>
         </TouchableOpacity>
     );
 
@@ -131,28 +124,28 @@ export default function TeamManagement() {
         <SafeAreaView style={styles.container}>
 
             <View style={styles.header}>
-                <Text style={styles.headerText}>Equipe</Text>
+                <Text style={styles.headerText}>Cadastro de Serviços</Text>
             </View>
 
             <View style={styles.searchContainer}>
                 <TextInput
                     onChangeText={onChangeText}
                     value={text}
-                    placeholder="Buscar membros da equipe..."
+                    placeholder="Buscar serviços..."
                     style={styles.input}
                 />
                 <TouchableOpacity
-                    onPress={() => setCreateMemberModal(true)}
+                    onPress={() => setCreateServiceModal(true)}
                     style={styles.createButton}
                 >
-                    <Text style={styles.buttonText}>Adicionar Membro</Text>
+                    <Text style={styles.buttonText}>Criar Novo Serviço</Text>
                 </TouchableOpacity>
             </View>
 
             <FlatList
                 style={styles.flatList}
                 contentContainerStyle={styles.flatListContent}
-                data={filteredTeam}
+                data={filteredServices}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id.toString()}
             />
@@ -179,55 +172,49 @@ export default function TeamManagement() {
             <Modal
                 transparent={true}
                 animationType="fade"
-                visible={createMemberModal}
-                onRequestClose={() => setCreateMemberModal(false)}
+                visible={createServiceModal}
+                onRequestClose={() => setCreateServiceModal(false)}
             >
                 <TouchableOpacity
                     activeOpacity={1}
-                    onPress={() => setCreateMemberModal(false)}
+                    onPress={() => setCreateServiceModal(false)}
                     style={styles.modalBackground}
                 >
                     <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-                        <Text style={styles.modalTitle}>Adicionar Membro</Text>
+                        <Text style={styles.modalTitle}>Criar Novo Serviço</Text>
                         <TextInput
-                            placeholder="Nome"
-                            onChangeText={(text) => setNewMember({ ...newMember, name: text })}
-                            value={newMember.name}
+                            placeholder="Nome do Serviço"
+                            onChangeText={(text) => setNewService({ ...newService, name: text })}
+                            value={newService.name}
                             style={styles.modalInput}
                             editable={!loading}
                         />
                         <TextInput
-                            placeholder="Email"
-                            onChangeText={(text) => setNewMember({ ...newMember, email: text })}
-                            value={newMember.email}
-                            style={styles.modalInput}
+                            placeholder="Descrição"
+                            onChangeText={(text) => {
+                                if (text.length <= descMaxLength) {
+                                    setNewService({ ...newService, desc: text });
+                                }
+                            }}
+                            value={newService.desc}
+                            style={[styles.modalInput, styles.descInput]}
                             editable={!loading}
+                            multiline={true}
                         />
-                        <TextInput
-                            placeholder="CPF"
-                            onChangeText={(text) => setNewMember({ ...newMember, cpf: text })}
-                            value={newMember.cpf}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <TextInput
-                            placeholder="Telefone"
-                            onChangeText={(text) => setNewMember({ ...newMember, phone: text })}
-                            value={newMember.phone}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
+                        <Text style={styles.charCount}>
+                            {newService.desc.length}/{descMaxLength} caracteres
+                        </Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={styles.modalActionButton}
-                                onPress={handleCreateMember}
+                                onPress={handleCreateService}
                                 disabled={loading}
                             >
-                                <Text style={styles.modalActionButtonText}>Adicionar</Text>
+                                <Text style={styles.modalActionButtonText}>Criar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.modalCancelButton}
-                                onPress={() => setCreateMemberModal(false)}
+                                onPress={() => setCreateServiceModal(false)}
                             >
                                 <Text style={styles.modalCancelButtonText}>Cancelar</Text>
                             </TouchableOpacity>
@@ -239,65 +226,59 @@ export default function TeamManagement() {
             <Modal
                 transparent={true}
                 animationType="fade"
-                visible={editMemberModal}
-                onRequestClose={() => !loading && setEditMemberModal(false)}
+                visible={editServiceModal}
+                onRequestClose={() => !loading && setEditServiceModal(false)}
             >
                 <TouchableOpacity
                     activeOpacity={1}
-                    onPress={() => !loading && setEditMemberModal(false)}
+                    onPress={() => !loading && setEditServiceModal(false)}
                     style={styles.modalBackground}
                 >
                     <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Editar Membro</Text>
+                            <Text style={styles.modalTitle}>Editar Serviço</Text>
                             <TouchableOpacity
                                 style={styles.modalCloseButton}
-                                onPress={() => !loading && setEditMemberModal(false)}
+                                onPress={() => !loading && setEditServiceModal(false)}
                             >
                                 <Icon name="close" size={24} color="#000" />
                             </TouchableOpacity>
                         </View>
-                        {currentMember && (
+                        {currentService && (
                             <>
                                 <TextInput
-                                    placeholder="Nome"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, name: text })}
-                                    value={currentMember.name}
+                                    placeholder="Nome do Serviço"
+                                    onChangeText={(text) => setCurrentService({ ...currentService, name: text })}
+                                    value={currentService.name}
                                     style={styles.modalInput}
                                     editable={!loading}
                                 />
                                 <TextInput
-                                    placeholder="Email"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, email: text })}
-                                    value={currentMember.email}
-                                    style={styles.modalInput}
+                                    placeholder="Descrição"
+                                    onChangeText={(text) => {
+                                        if (text.length <= descMaxLength) {
+                                            setCurrentService({ ...currentService, desc: text });
+                                        }
+                                    }}
+                                    value={currentService.desc}
+                                    style={[styles.modalInput, styles.descInput]}
                                     editable={!loading}
+                                    multiline={true}
                                 />
-                                <TextInput
-                                    placeholder="CPF"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, cpf: text })}
-                                    value={currentMember.cpf}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <TextInput
-                                    placeholder="Telefone"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, phone: text })}
-                                    value={currentMember.phone}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
+                                <Text style={styles.charCount}>
+                                    {currentService.desc.length}/{descMaxLength} caracteres
+                                </Text>
                                 <View style={styles.modalButtons}>
                                     <TouchableOpacity
                                         style={styles.modalActionButton}
-                                        onPress={handleEditMember}
+                                        onPress={handleEditService}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalActionButtonText}>Salvar</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.modalCancelButton}
-                                        onPress={() => currentMember && handleDeleteMember(currentMember.id)}
+                                        onPress={() => currentService && handleDeleteService(currentService.id)}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalCancelButtonText}>Excluir</Text>
@@ -369,7 +350,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 20,
     },
-    memberItem: {
+    serviceItem: {
         backgroundColor: '#fff',
         padding: 15,
         marginBottom: 10,
@@ -377,7 +358,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#ddd',
     },
-    memberTitle: {
+    serviceTitle: {
         fontSize: 16,
         fontWeight: 'bold',
         marginBottom: 5,
@@ -411,6 +392,15 @@ const styles = StyleSheet.create({
         borderColor: '#ccc',
         paddingVertical: 8,
         marginBottom: 20,
+    },
+    descInput: {
+        height: 80,
+        textAlignVertical: 'top',
+    },
+    charCount: {
+        textAlign: 'right',
+        color: '#999',
+        marginBottom: 10,
     },
     modalButtons: {
         flexDirection: 'row',
