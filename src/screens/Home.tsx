@@ -39,7 +39,12 @@ export default function Home() {
 
   useEffect(() => {
     const filtered = tasks
-      .filter((task) => task.name.toLowerCase().includes(text.toLowerCase()))
+      .filter((task) => task.name.toLowerCase().includes(text.toLowerCase()) ||
+        task.service.name.toLowerCase().includes(text.toLowerCase()) ||
+        task.teammenber.name.toLowerCase().includes(text.toLowerCase()) ||
+        task.initDate.toLowerCase().includes(text.toLowerCase()) ||
+        task.endDate.toLowerCase().includes(text.toLowerCase())
+      )
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
     setFilteredTasks(filtered);
