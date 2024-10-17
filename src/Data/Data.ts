@@ -1,83 +1,3 @@
-export interface Task {
-  id: number;
-  name: string;
-  desc: string;
-  initDate: string;
-  endDate: string;
-}
-export const Tasks: Task[] = [
-  {
-    id: 1,
-    name: "Desenvolvimento de Interface",
-    desc: "Criar a interface do usuário para o aplicativo.",
-    initDate: "2024-10-01",
-    endDate: "2024-10-10",
-  },
-  {
-    id: 2,
-    name: "Implementação de API",
-    desc: "Desenvolver a API para integração com o banco de dados.",
-    initDate: "2024-10-05",
-    endDate: "2024-10-15",
-  },
-  {
-    id: 3,
-    name: "Testes de Funcionalidade",
-    desc: "Realizar testes de funcionalidade no sistema.",
-    initDate: "2024-10-08",
-    endDate: "2024-10-12",
-  },
-  {
-    id: 4,
-    name: "Revisão de Código",
-    desc: "Revisar o código do projeto para garantir qualidade.",
-    initDate: "2024-10-10",
-    endDate: "2024-10-14",
-  },
-  {
-    id: 5,
-    name: "Documentação",
-    desc: "Criar a documentação do projeto e das funcionalidades.",
-    initDate: "2024-10-02",
-    endDate: "2024-10-09",
-  },
-  {
-    id: 6,
-    name: "Configuração de Ambiente",
-    desc: "Configurar o ambiente de desenvolvimento e testes.",
-    initDate: "2024-10-03",
-    endDate: "2024-10-07",
-  },
-  {
-    id: 7,
-    name: "Reunião de Equipe",
-    desc: "Reunião para discutir o progresso do projeto.",
-    initDate: "2024-10-11",
-    endDate: "2024-10-11",
-  },
-  {
-    id: 8,
-    name: "Deploy em Produção",
-    desc: "Realizar o deploy da aplicação em ambiente de produção.",
-    initDate: "2024-10-16",
-    endDate: "2024-10-18",
-  },
-  {
-    id: 9,
-    name: "Análise de Feedback",
-    desc: "Analisar o feedback recebido dos usuários.",
-    initDate: "2024-10-14",
-    endDate: "2024-10-20",
-  },
-  {
-    id: 10,
-    name: "Planejamento do Próximo Sprint",
-    desc: "Planejar as atividades do próximo sprint.",
-    initDate: "2024-10-21",
-    endDate: "2024-10-25",
-  },
-];
-
 export interface TeamMenber {
   id: number;
   name: string;
@@ -129,6 +49,7 @@ export interface Service {
   name: string;
   desc: string;
 }
+
 export const ServicesList: Service[] = [
   {
     id: 123456,
@@ -154,5 +75,63 @@ export const ServicesList: Service[] = [
     id: 567890,
     name: "Pintura de Interiores",
     desc: "Serviço de pintura profissional para ambientes internos.",
+  },
+];
+
+export interface Task {
+  id: number;
+  name: string;
+  desc: string;
+  initDate: string;
+  endDate: string;
+  service: Service;
+  teammenber: TeamMenber;
+}
+
+export const Tasks: Task[] = [
+  {
+    id: 1,
+    name: "Criação de Protótipo",
+    desc: "Desenvolver um protótipo funcional do aplicativo.",
+    initDate: "2024-10-22",
+    endDate: "2024-10-24",
+    service: ServicesList[0],
+    teammenber: Team[0],
+  },
+  {
+    id: 2,
+    name: "Auditoria de Segurança",
+    desc: "Auditar a segurança do sistema e identificar vulnerabilidades.",
+    initDate: "2024-10-26",
+    endDate: "2024-10-29",
+    service: ServicesList[1],
+    teammenber: Team[1],
+  },
+  {
+    id: 3,
+    name: "Otimização de Banco de Dados",
+    desc: "Melhorar o desempenho das consultas no banco de dados.",
+    initDate: "2024-11-01",
+    endDate: "2024-11-05",
+    service: ServicesList[2],
+    teammenber: Team[2],
+  },
+  {
+    id: 4,
+    name: "Treinamento da Equipe",
+    desc: "Capacitar a equipe para utilizar novas tecnologias no projeto.",
+    initDate: "2024-11-03",
+    endDate: "2024-11-07",
+    service: ServicesList[3],
+    teammenber: Team[3],
+  },
+  {
+    id: 5,
+    name: "Apresentação do Projeto",
+    desc: "Realizar uma apresentação final do projeto para os stakeholders.",
+    initDate: "2024-11-10",
+    endDate: "2024-11-12",
+    service: ServicesList[4],
+    teammenber: Team[4],
   },
 ];

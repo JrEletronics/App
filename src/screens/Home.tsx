@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { Task, Tasks } from "@data/data";
+import { Picker } from '@react-native-picker/picker';
+import { Task, Tasks, Team, TeamMenber, ServicesList, Service } from "@data/data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
 export default function Home() {
-
   const [text, onChangeText] = useState("");
   const [createTaskModal, setCreateTaskModal] = useState<boolean>(false);
   const [editTaskModal, setEditTaskModal] = useState<boolean>(false);
@@ -18,7 +18,13 @@ export default function Home() {
     desc: "",
     initDate: "",
     endDate: "",
+    service: { id: 0, name: "", desc: "" },
+    teammenber: { id: 0, name: "", email: "", cpf: "", phone: "" },
   });
+  const [services, setServices] = useState<Service[]>(ServicesList);
+  const [team, setTeam] = useState<TeamMenber[]>(Team);
+  const [selectedService, setSelectedService] = useState<number | null>(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -60,6 +66,19 @@ export default function Home() {
   };
 
   const handleCreateTask = () => {
+    if (selectedService === null || selectedTeamMember === null) {
+      showMessage("Por favor, selecione um serviço e um membro da equipe.");
+      return;
+    }
+
+    const selectedServiceObj = services.find(s => s.id === selectedService);
+    const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
+
+    if (!selectedServiceObj || !selectedTeamMemberObj) {
+      showMessage("Serviço ou Membro da equipe inválidos.");
+      return;
+    }
+
     setCreateTaskModal(false);
     setLoading(true);
     const existingIds = tasks.map((task) => task.id);
@@ -70,18 +89,26 @@ export default function Home() {
     }
 
     setTimeout(() => {
-      setTasks([...tasks, { ...newTask, id: newId }]);
-      setFilteredTasks([...tasks, { ...newTask, id: newId }]);
-      setNewTask({
-        id: generateRandomId(),
-        name: "",
-        desc: "",
-        initDate: "",
-        endDate: "",
-      });
+      setTasks([...tasks, { ...newTask, id: newId, service: selectedServiceObj, teammenber: selectedTeamMemberObj }]);
+      setFilteredTasks([...tasks, { ...newTask, id: newId, service: selectedServiceObj, teammenber: selectedTeamMemberObj }]);
+      resetNewTask();
       setLoading(false);
       showMessage("Tarefa criada com sucesso!");
     }, 500);
+  };
+
+  const resetNewTask = () => {
+    setNewTask({
+      id: generateRandomId(),
+      name: "",
+      desc: "",
+      initDate: "",
+      endDate: "",
+      service: { id: 0, name: "", desc: "" },
+      teammenber: { id: 0, name: "", email: "", cpf: "", phone: "" }
+    });
+    setSelectedService(null);
+    setSelectedTeamMember(null);
   };
 
   const handleEditTask = () => {
@@ -117,6 +144,8 @@ export default function Home() {
       style={styles.taskItem}
       onPress={() => {
         setCurrentTask(item);
+        setSelectedService(item.service ? item.service.id : null);
+        setSelectedTeamMember(item.teammenber ? item.teammenber.id : null);
         setEditTaskModal(true);
       }}
     >
@@ -124,6 +153,8 @@ export default function Home() {
       <Text>{item.desc}</Text>
       <Text>Início: {item.initDate}</Text>
       <Text>Fim: {item.endDate}</Text>
+      <Text>Serviço: {item.service ? item.service.name : 'N/A'}</Text>
+      <Text>Membro: {item.teammenber ? item.teammenber.name : 'N/A'}</Text>
     </TouchableOpacity>
   );
 
@@ -176,6 +207,7 @@ export default function Home() {
         </Modal>
       )}
 
+      {/* Modal de criação de tarefa */}
       <Modal
         transparent={true}
         animationType="fade"
@@ -225,6 +257,31 @@ export default function Home() {
               style={styles.modalInput}
               editable={!loading}
             />
+
+            {/* Picker para seleção de serviço */}
+            <Picker
+              selectedValue={selectedService}
+              style={styles.picker}
+              onValueChange={(itemValue) => setSelectedService(itemValue)}
+            >
+              <Picker.Item label="Select Service" value={null} />
+              {services.map((service) => (
+                <Picker.Item key={service.id} label={service.name} value={service.id} />
+              ))}
+            </Picker>
+
+            {/* Picker para seleção de funcionário */}
+            <Picker
+              selectedValue={selectedTeamMember}
+              style={styles.picker}
+              onValueChange={(itemValue) => setSelectedTeamMember(itemValue)}
+            >
+              <Picker.Item label="Select Team Member" value={null} />
+              {team.map((member) => (
+                <Picker.Item key={member.id} label={member.name} value={member.id} />
+              ))}
+            </Picker>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalActionButton}
@@ -244,6 +301,7 @@ export default function Home() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Modal de edição de tarefa */}
       <Modal
         transparent={true}
         animationType="fade"
@@ -303,6 +361,31 @@ export default function Home() {
                   style={styles.modalInput}
                   editable={!loading}
                 />
+
+                {/* Picker para editar o serviço */}
+                <Picker
+                  selectedValue={selectedService}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => setSelectedService(itemValue)}
+                >
+                  <Picker.Item label="Select Service" value={null} />
+                  {services.map((service) => (
+                    <Picker.Item key={service.id} label={service.name} value={service.id} />
+                  ))}
+                </Picker>
+
+                {/* Picker para editar o funcionário */}
+                <Picker
+                  selectedValue={selectedTeamMember}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => setSelectedTeamMember(itemValue)}
+                >
+                  <Picker.Item label="Select Team Member" value={null} />
+                  {team.map((member) => (
+                    <Picker.Item key={member.id} label={member.name} value={member.id} />
+                  ))}
+                </Picker>
+
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.modalActionButton}
@@ -461,6 +544,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  picker: {
+    height: 50,
+    marginVertical: 10,
+  },
   messageContainer: {
     position: 'absolute',
     bottom: 10,
@@ -472,6 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6200ea',
     borderRadius: 8,
     marginHorizontal: 20,
+    zIndex: 999,
   },
   messageText: {
     color: '#fff',
@@ -482,5 +570,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 999,
   },
 });
