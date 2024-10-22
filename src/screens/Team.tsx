@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { TeamMenber, Team } from "@data/data";
+import { TeamMenber, Team } from "../Data/Data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
+import { fetchTeam } from "../firebase/index";
+import { getFirestore, collection, addDoc, getDocs,doc,deleteDoc,updateDoc} from 'firebase/firestore';
+import { app, db } from '../firebase/index'; // substitua pelo caminho correto
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
 export default function TeamManagement() {
@@ -12,7 +14,7 @@ export default function TeamManagement() {
     const [team, setTeam] = useState<TeamMenber[]>(Team);
     const [filteredTeam, setFilteredTeam] = useState<TeamMenber[]>(Team);
     const [newMember, setNewMember] = useState<TeamMenber>({
-        id: generateRandomId(),
+        id: "",
         name: "",
         email: "",
         cpf: "",
@@ -24,8 +26,108 @@ export default function TeamManagement() {
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
+    const addTeam = async (newMember: TeamMenber) => {
+        
+    
+        try {
+            setCreateMemberModal(false);
+            setLoading(true);
+          // Adiciona uma nova tarefa na coleção "demandas"
+          await addDoc(collection(db, 'funcionarios'), {
+            name: newMember.name,
+            email: newMember.email,
+            cpf: newMember.cpf,
+            phone: newMember.phone,
+          });
+      
+          console.log("Tarefa adicionada com sucesso!");
+          fetchTeam(setTeam);
+          setFilteredTeam(team);
+        } catch (error) {
+          console.error("Erro ao adicionar a tarefa: ", error);
+        }
+        finally{
+          setLoading(false);
+        }
+      };
+
+      const deleteMenber = async (MenberId) => {
+        try {
+          // Referência ao documento que deseja excluir
+          const taskDocRef = doc(db, 'funcionarios', MenberId.toString()); // Converta MenberId para string se necessário
+          
+          setEditMemberModal(false);
+          setLoading(true);
+      
+          // Exclui o documento
+          await deleteDoc(taskDocRef);
+          
+          // Atualiza a lista de tarefas, removendo a tarefa excluída
+          const updatedTeam = Team.filter(task => task.id !== MenberId);
+          setTeam(updatedTeam);
+          setFilteredTeam(updatedTeam); // Atualizar tarefas filtradas se necessário
+      
+          console.log(`Tarefa ${MenberId} excluída com sucesso.`);
+          showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
+          fetchTeam(setTeam);
+      
+          // Desativar loading após um delay, se necessário
+          setTimeout(() => {
+            setLoading(false);
+          }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+      
+        } catch (error) {
+          console.error('Erro ao excluir tarefa: ', error);
+          setLoading(false); // Garantir que o loading seja desativado em caso de erro
+        }
+      };
+
+      const editMenber = async () => {
+        try {
+          if (currentMember) {
+            setEditMemberModal(false);
+            setLoading(true); // Ativar loading
+      
+            // Referência ao documento que deseja atualizar
+            const taskDocRef = doc(db, 'funcionarios', currentMember.id.toString()); // Converta currentMember.id para string se necessário
+      
+            // Atualiza o documento no Firestore
+            await updateDoc(taskDocRef, {
+                name: currentMember.name,
+                email: currentMember.email,
+                cpf: currentMember.cpf,
+                phone: currentMember.phone,
+            });
+      
+            // Atualiza a lista de tarefas localmente
+            const updatedTeam = Team.map((member) =>
+                member.id === currentMember.id ? currentMember : member
+            );
+            fetchTeam(setTeam);
+            setFilteredTeam(updatedTeam); // Atualiza tarefas filtradas se necessário
+      
+            console.log(`Tarefa ${currentMember.id} editada com sucesso.`);
+            showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
+      
+            // Desativar loading após um delay, se necessário
+            setTimeout(() => {
+              setLoading(false);
+            }, 500); // Manter o mesmo delay da função de edição
+      
+          }
+        } catch (error) {
+          console.error('Erro ao editar tarefa: ', error);
+          setLoading(false); // Garantir que o loading seja desativado em caso de erro
+        }
+      };
+
+
+
+
+
+
     useEffect(() => {
-        setTeam(Team)
+        fetchTeam(setTeam);
         setFilteredTeam(team);
     }, []);
 
@@ -58,59 +160,9 @@ export default function TeamManagement() {
         }).start();
         clearMessage();
     };
+    
 
-    const handleCreateMember = () => {
-        setCreateMemberModal(false);
-        setLoading(true);
-        const existingIds = team.map((member) => member.id);
-        let newId = generateRandomId();
-
-        while (existingIds.includes(newId)) {
-            newId = generateRandomId();
-        }
-
-        setTimeout(() => {
-            setTeam([...team, { ...newMember, id: newId }]);
-            setFilteredTeam([...team, { ...newMember, id: newId }]);
-            setNewMember({
-                id: generateRandomId(),
-                name: "",
-                email: "",
-                cpf: "",
-                phone: ""
-            });
-            setLoading(false);
-            showMessage("Membro da equipe criado com sucesso!");
-        }, 500);
-    };
-
-    const handleEditMember = () => {
-        setEditMemberModal(false);
-        setLoading(true);
-        if (currentMember) {
-            setTimeout(() => {
-                const updatedTeam = team.map((member) =>
-                    member.id === currentMember.id ? currentMember : member
-                );
-                setTeam(updatedTeam);
-                setFilteredTeam(updatedTeam);
-                setLoading(false);
-                showMessage("Membro da equipe editado com sucesso!");
-            }, 500);
-        }
-    };
-
-    const handleDeleteMember = (id: number) => {
-        setEditMemberModal(false);
-        setLoading(true);
-        setTimeout(() => {
-            const updatedTeam = team.filter((member) => member.id !== id);
-            setTeam(updatedTeam);
-            setFilteredTeam(updatedTeam);
-            setLoading(false);
-            showMessage("Membro da equipe excluído com sucesso!");
-        }, 500);
-    };
+    
 
     const renderItem = ({ item }: { item: TeamMenber }) => (
         <TouchableOpacity
@@ -219,8 +271,8 @@ export default function TeamManagement() {
                         />
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
-                                style={styles.modalActionButton}
-                                onPress={handleCreateMember}
+                                style={styles.modalActionButton}                                
+                                onPress={()=>addTeam(newMember)}
                                 disabled={loading}
                             >
                                 <Text style={styles.modalActionButtonText}>Adicionar</Text>
@@ -290,14 +342,14 @@ export default function TeamManagement() {
                                 <View style={styles.modalButtons}>
                                     <TouchableOpacity
                                         style={styles.modalActionButton}
-                                        onPress={handleEditMember}
+                                        onPress={editMenber}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalActionButtonText}>Salvar</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.modalCancelButton}
-                                        onPress={() => currentMember && handleDeleteMember(currentMember.id)}
+                                        onPress={() => currentMember && deleteMenber(currentMember.id)}                                
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalCancelButtonText}>Excluir</Text>

@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { Service, ServicesList } from "@data/data";
+import { Service, ServicesList } from "../Data/Data";
+import { fetchservices } from "../firebase/index";
+import { getFirestore, collection, addDoc, getDocs,doc,deleteDoc,updateDoc} from 'firebase/firestore';
+import { app, db } from '../firebase/index'; // substitua pelo caminho correto
 
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
@@ -12,7 +15,7 @@ export default function Services() {
     const [services, setServices] = useState<Service[]>([]);
     const [filteredServices, setFilteredServices] = useState<Service[]>([]);
     const [newService, setNewService] = useState<Service>({
-        id: generateRandomId(),
+        id: "",
         name: "",
         desc: "",
     });
@@ -23,8 +26,99 @@ export default function Services() {
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
+    const addService = async (newService: Service) => {
+        
+    
+        try {
+            setCreateServiceModal(false);
+            setLoading(true);
+          // Adiciona uma nova tarefa na coleção "demandas"
+          await addDoc(collection(db, 'servicos'), {
+            name: newService.name,
+            desc: newService.desc,
+          });
+      
+          console.log("Tarefa adicionada com sucesso!");
+          fetchservices(setServices);
+          setFilteredServices(ServicesList);
+        } catch (error) {
+          console.error("Erro ao adicionar a tarefa: ", error);
+        }
+        finally{
+          setLoading(false);
+        }
+      };
+
+      const deleteService = async (ServiceId) => {
+        try {
+          // Referência ao documento que deseja excluir
+          const taskDocRef = doc(db, 'servicos', ServiceId.toString()); // Converta ServiceId para string se necessário
+          
+          setEditServiceModal(false);
+          setLoading(true);
+      
+          // Exclui o documento
+          await deleteDoc(taskDocRef);
+          
+          // Atualiza a lista de tarefas, removendo a tarefa excluída
+          const updatedServices = ServicesList.filter(Service => Service.id !== ServiceId);
+          setServices(updatedServices);
+          setFilteredServices(updatedServices); // Atualizar tarefas filtradas se necessário
+      
+          console.log(`Tarefa ${ServiceId} excluída com sucesso.`);
+          showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
+          fetchservices(setServices);
+      
+          // Desativar loading após um delay, se necessário
+          setTimeout(() => {
+            setLoading(false);
+          }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+      
+        } catch (error) {
+          console.error('Erro ao excluir tarefa: ', error);
+          setLoading(false); // Garantir que o loading seja desativado em caso de erro
+        }
+      };
+      const editService = async () => {
+        try {
+          if (currentService) {
+            setEditServiceModal(false);
+            setLoading(true);
+      
+            // Referência ao documento que deseja atualizar
+            const taskDocRef = doc(db, 'servicos', currentService.id.toString()); // Converta currentService.id para string se necessário
+      
+            // Atualiza o documento no Firestore
+            await updateDoc(taskDocRef, {
+                name: currentService.name,
+                desc: currentService.desc,
+            });
+      
+            // Atualiza a lista de tarefas localmente
+            const updatedServices = ServicesList.map((service) =>
+                service.id === currentService.id ? currentService : service
+            );
+            setServices(updatedServices);
+            setFilteredServices(updatedServices); // Atualiza tarefas filtradas se necessário
+      
+            console.log(`Tarefa ${currentService.id} editada com sucesso.`);
+            showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
+            fetchservices(setServices);
+            // Desativar loading após um delay, se necessário
+            setTimeout(() => {
+              setLoading(false);
+            }, 500); // Manter o mesmo delay da função de edição
+      
+          }
+        } catch (error) {
+          console.error('Erro ao editar tarefa: ', error);
+          setLoading(false); // Garantir que o loading seja desativado em caso de erro
+        }
+      };
+
+
     useEffect(() => {
-        setServices(ServicesList);
+        fetchservices(setServices);
         setFilteredServices(ServicesList);
     }, []);
 
@@ -54,30 +148,7 @@ export default function Services() {
             useNativeDriver: true,
         }).start();
         clearMessage();
-    };
-
-    const handleCreateService = () => {
-        setCreateServiceModal(false);
-        setLoading(true);
-        const existingIds = services.map((service) => service.id);
-        let newId = generateRandomId();
-
-        while (existingIds.includes(newId)) {
-            newId = generateRandomId();
-        }
-
-        setTimeout(() => {
-            setServices([...services, { ...newService, id: newId }]);
-            setFilteredServices([...services, { ...newService, id: newId }]);
-            setNewService({
-                id: generateRandomId(),
-                name: "",
-                desc: "",
-            });
-            setLoading(false);
-            showMessage("Serviço criado com sucesso!");
-        }, 500);
-    };
+    };    
 
     const handleEditService = () => {
         setEditServiceModal(false);
@@ -93,19 +164,7 @@ export default function Services() {
                 showMessage("Serviço editado com sucesso!");
             }, 500);
         }
-    };
-
-    const handleDeleteService = (id: number) => {
-        setEditServiceModal(false);
-        setLoading(true);
-        setTimeout(() => {
-            const updatedServices = services.filter((service) => service.id !== id);
-            setServices(updatedServices);
-            setFilteredServices(updatedServices);
-            setLoading(false);
-            showMessage("Serviço excluído com sucesso!");
-        }, 500);
-    };
+    };    
 
     const renderItem = ({ item }: { item: Service }) => (
         <TouchableOpacity
@@ -207,7 +266,7 @@ export default function Services() {
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={styles.modalActionButton}
-                                onPress={handleCreateService}
+                                onPress={()=>addService(newService)}
                                 disabled={loading}
                             >
                                 <Text style={styles.modalActionButtonText}>Criar</Text>
@@ -271,14 +330,14 @@ export default function Services() {
                                 <View style={styles.modalButtons}>
                                     <TouchableOpacity
                                         style={styles.modalActionButton}
-                                        onPress={handleEditService}
+                                        onPress={editService}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalActionButtonText}>Salvar</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.modalCancelButton}
-                                        onPress={() => currentService && handleDeleteService(currentService.id)}
+                                        onPress={() => currentService && deleteService(currentService.id)}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalCancelButtonText}>Excluir</Text>

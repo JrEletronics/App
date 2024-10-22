@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
 import { Picker } from '@react-native-picker/picker';
-import { Task, Tasks, Team, TeamMenber, ServicesList, Service } from "@data/data";
+import { Task, Tasks, Team, TeamMenber, ServicesList, Service, salveTask } from "../Data/Data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { fetchTasks } from "../firebase/index";
+import { getFirestore, collection, addDoc, getDocs,doc,deleteDoc,updateDoc} from 'firebase/firestore';
+import { app, db } from '../firebase/index'; // substitua pelo caminho correto
+import { fetchservices,fetchTeam } from "../firebase/index";
 
 const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
 
@@ -12,28 +16,153 @@ export default function Home() {
   const [editTaskModal, setEditTaskModal] = useState<boolean>(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [newTask, setNewTask] = useState<Task>({
-    id: generateRandomId(),
+  const [newTask, setNewTask] = useState<salveTask>({
+    id: "",
     name: "",
     desc: "",
     initDate: "",
     endDate: "",
-    service: { id: 0, name: "", desc: "" },
-    teammenber: { id: 0, name: "", email: "", cpf: "", phone: "" },
+    idservice: "",
+    idmenber: "",
   });
   const [services, setServices] = useState<Service[]>(ServicesList);
   const [team, setTeam] = useState<TeamMenber[]>(Team);
-  const [selectedService, setSelectedService] = useState<number | null>(null);
-  const [selectedTeamMember, setSelectedTeamMember] = useState<number | null>(null);
+  const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(null);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
   const [descMaxLength] = useState(200);
-
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+
+  const addTask = async (newTask: salveTask) => {
+    if (selectedService === null || selectedTeamMember === null) {
+      showMessage("Por favor, selecione um serviço e um membro da equipe.");
+      return;
+    }
+
+    const selectedServiceObj = services.find(s => s.id === selectedService);
+    const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
+
+    if (!selectedServiceObj || !selectedTeamMemberObj) {
+      showMessage("Serviço ou Membro da equipe inválidos.");
+      return;
+    }
+    
+    try {
+      setCreateTaskModal(false);
+      setLoading(true);
+      // Adiciona uma nova tarefa na coleção "demandas"
+      await addDoc(collection(db, 'demandas'), {
+        name: newTask.name,
+        desc: newTask.desc,
+        initDate: newTask.initDate,
+        endDate: newTask.endDate,
+        service: selectedServiceObj.id,
+        teammenber: selectedTeamMemberObj.id
+        ,
+      });
+  
+      console.log("Tarefa adicionada com sucesso!");
+      fetchTasks(setTasks)
+      setFilteredTasks(tasks)
+    } catch (error) {
+      console.error("Erro ao adicionar a tarefa: ", error);
+    }
+    finally{
+      setLoading(false);
+    }
+  };
+  const deleteTask = async (taskId) => {
+    try {
+      // Referência ao documento que deseja excluir
+      const taskDocRef = doc(db, 'demandas', taskId.toString()); // Converta taskId para string se necessário
+
+      
+      setEditTaskModal(false); // Fechar o modal de edição, se estiver aberto
+      setLoading(true); // Ativar loading
+  
+      // Exclui o documento
+      await deleteDoc(taskDocRef);
+      
+      // Atualiza a lista de tarefas, removendo a tarefa excluída
+      const updatedTasks = tasks.filter(task => task.id !== taskId);
+      setTasks(updatedTasks);
+      setFilteredTasks(updatedTasks); // Atualizar tarefas filtradas se necessário
+  
+      console.log(`Tarefa ${taskId} excluída com sucesso.`);
+      showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
+  
+      // Desativar loading após um delay, se necessário
+      setTimeout(() => {
+        setLoading(false);
+      }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+  
+    } catch (error) {
+      console.error('Erro ao excluir tarefa: ', error);
+      setLoading(false); // Garantir que o loading seja desativado em caso de erro
+    }
+  };
+  const editTask = async () => {
+    try {
+      if (currentTask) {
+        setEditTaskModal(false); // Fechar o modal de edição
+        setLoading(true); // Ativar loading
+  
+        // Referência ao documento que deseja atualizar
+        const taskDocRef = doc(db, 'demandas', currentTask.id.toString()); // Converta currentTask.id para string se necessário
+        if (selectedService === null || selectedTeamMember === null) {
+          showMessage("Por favor, selecione um serviço e um membro da equipe.");
+          return;
+        }
+    
+        const selectedServiceObj = services.find(s => s.id === selectedService);
+        const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
+    
+        if (!selectedServiceObj || !selectedTeamMemberObj) {
+          showMessage("Serviço ou Membro da equipe inválidos.");
+          return;
+        }
+  
+        // Atualiza o documento no Firestore
+        await updateDoc(taskDocRef, {
+          name: currentTask.name,
+          desc: currentTask.desc,
+          initDate: currentTask.initDate,
+          endDate: currentTask.endDate,
+          service: selectedServiceObj.id,
+        teammenber: selectedTeamMemberObj.id
+        });
+  
+        // Atualiza a lista de tarefas localmente
+        const updatedTasks = tasks.map((task) =>
+          task.id === currentTask.id ? currentTask : task
+        );
+        fetchTasks(setTasks);
+        setFilteredTasks(updatedTasks); // Atualiza tarefas filtradas se necessário
+  
+        console.log(`Tarefa ${currentTask.id} editada com sucesso.`);
+        showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
+  
+        // Desativar loading após um delay, se necessário
+        setTimeout(() => {
+          setLoading(false);
+        }, 500); // Manter o mesmo delay da função de edição
+  
+      }
+    } catch (error) {
+      console.error('Erro ao editar tarefa: ', error);
+      setLoading(false); // Garantir que o loading seja desativado em caso de erro
+    }
+  };
+  
+
 
   useEffect(() => {
-    setTasks(Tasks);
+    fetchTasks(setTasks);
+    fetchservices(setServices);
+    fetchTeam(setTeam);
     setFilteredTasks(Tasks);
   }, []);
 
@@ -67,82 +196,23 @@ export default function Home() {
       duration: 500,
       useNativeDriver: true,
     }).start();
-    clearMessage();
-  };
-
-  const handleCreateTask = () => {
-    if (selectedService === null || selectedTeamMember === null) {
-      showMessage("Por favor, selecione um serviço e um membro da equipe.");
-      return;
-    }
-
-    const selectedServiceObj = services.find(s => s.id === selectedService);
-    const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
-
-    if (!selectedServiceObj || !selectedTeamMemberObj) {
-      showMessage("Serviço ou Membro da equipe inválidos.");
-      return;
-    }
-
-    setCreateTaskModal(false);
-    setLoading(true);
-    const existingIds = tasks.map((task) => task.id);
-    let newId = generateRandomId();
-
-    while (existingIds.includes(newId)) {
-      newId = generateRandomId();
-    }
-
-    setTimeout(() => {
-      setTasks([...tasks, { ...newTask, id: newId, service: selectedServiceObj, teammenber: selectedTeamMemberObj }]);
-      setFilteredTasks([...tasks, { ...newTask, id: newId, service: selectedServiceObj, teammenber: selectedTeamMemberObj }]);
-      resetNewTask();
-      setLoading(false);
-      showMessage("Tarefa criada com sucesso!");
-    }, 500);
-  };
-
+    clearMessage();  };
   const resetNewTask = () => {
     setNewTask({
-      id: generateRandomId(),
+      id: "",
       name: "",
       desc: "",
       initDate: "",
       endDate: "",
-      service: { id: 0, name: "", desc: "" },
-      teammenber: { id: 0, name: "", email: "", cpf: "", phone: "" }
+      idservice: "",
+      idmenber: ""
     });
     setSelectedService(null);
     setSelectedTeamMember(null);
   };
 
-  const handleEditTask = () => {
-    setEditTaskModal(false);
-    setLoading(true);
-    if (currentTask) {
-      setTimeout(() => {
-        const updatedTasks = tasks.map((task) =>
-          task.id === currentTask.id ? currentTask : task
-        );
-        setTasks(updatedTasks);
-        setFilteredTasks(updatedTasks);
-        setLoading(false);
-        showMessage("Tarefa editada com sucesso!");
-      }, 500);
-    }
-  };
 
-  const handleDeleteTask = (id: number) => {
-    setEditTaskModal(false);
-    setLoading(true);
-    setTimeout(() => {
-      const updatedTasks = tasks.filter((task) => task.id !== id);
-      setTasks(updatedTasks);
-      setFilteredTasks(updatedTasks);
-      setLoading(false);
-      showMessage("Tarefa excluída com sucesso!");
-    }, 500);
-  };
+  
 
   const renderItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
@@ -152,6 +222,8 @@ export default function Home() {
         setSelectedService(item.service ? item.service.id : null);
         setSelectedTeamMember(item.teammenber ? item.teammenber.id : null);
         setEditTaskModal(true);
+        fetchservices(setServices);
+        fetchTeam(setTeam);
       }}
     >
       <Text style={styles.taskTitle}>{item.name}</Text>
@@ -178,7 +250,10 @@ export default function Home() {
           style={styles.input}
         />
         <TouchableOpacity
-          onPress={() => setCreateTaskModal(true)}
+          onPress={() => {setCreateTaskModal(true)
+            fetchservices(setServices);
+            fetchTeam(setTeam);
+          }}
           style={styles.createButton}
         >
           <Text style={styles.buttonText}>Create New Task</Text>
@@ -290,7 +365,7 @@ export default function Home() {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalActionButton}
-                onPress={handleCreateTask}
+                onPress={()=>addTask(newTask)}
                 disabled={loading}
               >
                 <Text style={styles.modalActionButtonText}>Create</Text>
@@ -308,6 +383,8 @@ export default function Home() {
 
       {/* Modal de edição de tarefa */}
       <Modal
+
+        
         transparent={true}
         animationType="fade"
         visible={editTaskModal}
@@ -394,14 +471,14 @@ export default function Home() {
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.modalActionButton}
-                    onPress={handleEditTask}
+                    onPress={editTask}
                     disabled={loading}
                   >
                     <Text style={styles.modalActionButtonText}>Save</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.modalCancelButton}
-                    onPress={() => currentTask && handleDeleteTask(currentTask.id)}
+                    onPress={() => currentTask && deleteTask(currentTask.id)}
                     disabled={loading}
                   >
                     <Text style={styles.modalCancelButtonText}>Delete</Text>
