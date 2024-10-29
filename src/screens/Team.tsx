@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { TeamMenber, Team } from "../Data/Data";
+import { TeamMenber, Team } from "@data/Data";
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { fetchTeam } from "../firebase/index";
-import { getFirestore, collection, addDoc, getDocs,doc,deleteDoc,updateDoc} from 'firebase/firestore';
-import { app, db } from '../firebase/index'; // substitua pelo caminho correto
-const generateRandomId = () => Math.floor(100000 + Math.random() * 900000);
+import { fetchTeam } from "@firebase/index";
+import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@firebase/index';
 
 export default function TeamManagement() {
     const [text, onChangeText] = useState("");
@@ -23,114 +22,103 @@ export default function TeamManagement() {
     const [currentMember, setCurrentMember] = useState<TeamMenber | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<string | null>(null);
-
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const addTeam = async (newMember: TeamMenber) => {
-        
-    
         try {
             setCreateMemberModal(false);
             setLoading(true);
-          // Adiciona uma nova tarefa na coleção "demandas"
-          await addDoc(collection(db, 'funcionarios'), {
-            name: newMember.name,
-            email: newMember.email,
-            cpf: newMember.cpf,
-            phone: newMember.phone,
-          });
-      
-          console.log("Tarefa adicionada com sucesso!");
-          fetchTeam(setTeam);
-          setFilteredTeam(team);
-        } catch (error) {
-          console.error("Erro ao adicionar a tarefa: ", error);
-        }
-        finally{
-          setLoading(false);
-        }
-      };
-
-      const deleteMenber = async (MenberId) => {
-        try {
-          // Referência ao documento que deseja excluir
-          const taskDocRef = doc(db, 'funcionarios', MenberId.toString()); // Converta MenberId para string se necessário
-          
-          setEditMemberModal(false);
-          setLoading(true);
-      
-          // Exclui o documento
-          await deleteDoc(taskDocRef);
-          
-          // Atualiza a lista de tarefas, removendo a tarefa excluída
-          const updatedTeam = Team.filter(task => task.id !== MenberId);
-          setTeam(updatedTeam);
-          setFilteredTeam(updatedTeam); // Atualizar tarefas filtradas se necessário
-      
-          console.log(`Tarefa ${MenberId} excluída com sucesso.`);
-          showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
-          fetchTeam(setTeam);
-      
-          // Desativar loading após um delay, se necessário
-          setTimeout(() => {
-            setLoading(false);
-          }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
-      
-        } catch (error) {
-          console.error('Erro ao excluir tarefa: ', error);
-          setLoading(false); // Garantir que o loading seja desativado em caso de erro
-        }
-      };
-
-      const editMenber = async () => {
-        try {
-          if (currentMember) {
-            setEditMemberModal(false);
-            setLoading(true); // Ativar loading
-      
-            // Referência ao documento que deseja atualizar
-            const taskDocRef = doc(db, 'funcionarios', currentMember.id.toString()); // Converta currentMember.id para string se necessário
-      
-            // Atualiza o documento no Firestore
-            await updateDoc(taskDocRef, {
-                name: currentMember.name,
-                email: currentMember.email,
-                cpf: currentMember.cpf,
-                phone: currentMember.phone,
+            // Adiciona uma nova tarefa na coleção "demandas"
+            await addDoc(collection(db, 'funcionarios'), {
+                name: newMember.name,
+                email: newMember.email,
+                cpf: newMember.cpf,
+                phone: newMember.phone,
             });
-      
-            // Atualiza a lista de tarefas localmente
-            const updatedTeam = Team.map((member) =>
-                member.id === currentMember.id ? currentMember : member
-            );
+
+            console.log("Tarefa adicionada com sucesso!");
             fetchTeam(setTeam);
-            setFilteredTeam(updatedTeam); // Atualiza tarefas filtradas se necessário
-      
-            console.log(`Tarefa ${currentMember.id} editada com sucesso.`);
-            showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
-      
+            setFilteredTeam(team);
+        } catch (error) {
+            console.error("Erro ao adicionar a tarefa: ", error);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    const deleteMenber = async (MenberId) => {
+        try {
+            // Referência ao documento que deseja excluir
+            const taskDocRef = doc(db, 'funcionarios', MenberId.toString()); // Converta MenberId para string se necessário
+
+            setEditMemberModal(false);
+            setLoading(true);
+
+            // Exclui o documento
+            await deleteDoc(taskDocRef);
+
+            // Atualiza a lista de tarefas, removendo a tarefa excluída
+            const updatedTeam = Team.filter(task => task.id !== MenberId);
+            setTeam(updatedTeam);
+            setFilteredTeam(updatedTeam); // Atualizar tarefas filtradas se necessário
+
+            console.log(`Tarefa ${MenberId} excluída com sucesso.`);
+            showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
+            fetchTeam(setTeam);
+
             // Desativar loading após um delay, se necessário
             setTimeout(() => {
-              setLoading(false);
-            }, 500); // Manter o mesmo delay da função de edição
-      
-          }
+                setLoading(false);
+            }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+
         } catch (error) {
-          console.error('Erro ao editar tarefa: ', error);
-          setLoading(false); // Garantir que o loading seja desativado em caso de erro
+            console.error('Erro ao excluir tarefa: ', error);
+            setLoading(false); // Garantir que o loading seja desativado em caso de erro
         }
-      };
+    };
+    const editMenber = async () => {
+        try {
+            if (currentMember) {
+                setEditMemberModal(false);
+                setLoading(true); // Ativar loading
 
+                // Referência ao documento que deseja atualizar
+                const taskDocRef = doc(db, 'funcionarios', currentMember.id.toString()); // Converta currentMember.id para string se necessário
 
+                // Atualiza o documento no Firestore
+                await updateDoc(taskDocRef, {
+                    name: currentMember.name,
+                    email: currentMember.email,
+                    cpf: currentMember.cpf,
+                    phone: currentMember.phone,
+                });
 
+                // Atualiza a lista de tarefas localmente
+                const updatedTeam = Team.map((member) =>
+                    member.id === currentMember.id ? currentMember : member
+                );
+                fetchTeam(setTeam);
+                setFilteredTeam(updatedTeam); // Atualiza tarefas filtradas se necessário
 
+                console.log(`Tarefa ${currentMember.id} editada com sucesso.`);
+                showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
 
+                // Desativar loading após um delay, se necessário
+                setTimeout(() => {
+                    setLoading(false);
+                }, 500); // Manter o mesmo delay da função de edição
+
+            }
+        } catch (error) {
+            console.error('Erro ao editar tarefa: ', error);
+            setLoading(false); // Garantir que o loading seja desativado em caso de erro
+        }
+    };
 
     useEffect(() => {
         fetchTeam(setTeam);
         setFilteredTeam(team);
     }, []);
-
     useEffect(() => {
         const filtered = team
             .filter((member) =>
@@ -150,7 +138,6 @@ export default function TeamManagement() {
             }).start(() => setMessage(null));
         }, 3000);
     };
-
     const showMessage = (msg: string) => {
         setMessage(msg);
         Animated.timing(fadeAnim, {
@@ -160,9 +147,6 @@ export default function TeamManagement() {
         }).start();
         clearMessage();
     };
-    
-
-    
 
     const renderItem = ({ item }: { item: TeamMenber }) => (
         <TouchableOpacity
@@ -271,8 +255,8 @@ export default function TeamManagement() {
                         />
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
-                                style={styles.modalActionButton}                                
-                                onPress={()=>addTeam(newMember)}
+                                style={styles.modalActionButton}
+                                onPress={() => addTeam(newMember)}
                                 disabled={loading}
                             >
                                 <Text style={styles.modalActionButtonText}>Adicionar</Text>
@@ -349,7 +333,7 @@ export default function TeamManagement() {
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.modalCancelButton}
-                                        onPress={() => currentMember && deleteMenber(currentMember.id)}                                
+                                        onPress={() => currentMember && deleteMenber(currentMember.id)}
                                         disabled={loading}
                                     >
                                         <Text style={styles.modalCancelButtonText}>Excluir</Text>

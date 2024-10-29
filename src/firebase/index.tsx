@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { TeamMenber, Task, Service } from "../Data/Data";
+import { TeamMenber, Task, Service } from "@data/Data";
 
 // Configuração do Firebase 
 const firebaseConfig = {

@@ -25,6 +25,9 @@
       ],
       "@api/*": [
         "src/api/*"
+      ],
+      "@firebase/*": [
+        "src/firebase/*"
       ]
     }
   },
