@@ -1,17 +1,42 @@
 import { useState, useEffect, useRef } from "react";
-import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { Picker } from '@react-native-picker/picker';
-import { Task, Tasks, Team, TeamMenber, ServicesList, Service, salveTask } from "@data/Data";
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import {
+  FlatList,
+  Text,
+  TextInput,
+  View,
+  SafeAreaView,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import {
+  Task,
+  Tasks,
+  Team,
+  TeamMenber,
+  ServicesList,
+  Service,
+  salveTask,
+} from "@data/Data";
 import { fetchTasks } from "@firebase/index";
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@firebase/index';
+import {
+  collection,
+  addDoc,
+  doc,
+  deleteDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@firebase/index";
 import { fetchservices, fetchTeam } from "../firebase/index";
+import { TextInputMask } from "react-native-masked-text";
 
 export default function Home() {
   const [text, onChangeText] = useState("");
-  const [createTaskModal, setCreateTaskModal] = useState<boolean>(false);
-  const [editTaskModal, setEditTaskModal] = useState<boolean>(false);
+  const [createTaskModal, setCreateTaskModal] = useState(false);
+  const [editTaskModal, setEditTaskModal] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState<salveTask>({
@@ -28,117 +53,115 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(null);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [descMaxLength] = useState(200);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const addTask = async (newTask: salveTask) => {
+  const validateSelection = () => {
     if (selectedService === null || selectedTeamMember === null) {
       showMessage("Por favor, selecione um serviço e um membro da equipe.");
-      return;
+      return false;
     }
-
-    const selectedServiceObj = services.find(s => s.id === selectedService);
-    const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
-
+    const selectedServiceObj = services.find((s) => s.id === selectedService);
+    const selectedTeamMemberObj = team.find((m) => m.id === selectedTeamMember);
     if (!selectedServiceObj || !selectedTeamMemberObj) {
       showMessage("Serviço ou Membro da equipe inválidos.");
-      return;
+      return false;
     }
+    return { selectedServiceObj, selectedTeamMemberObj };
+  };
+
+  const addTask = async (newTask: salveTask) => {
+    const validation = validateSelection();
+    if (!validation) return;
+
+    const { selectedServiceObj, selectedTeamMemberObj } = validation;
 
     try {
       setCreateTaskModal(false);
       setLoading(true);
-      // Adiciona uma nova tarefa na coleção "demandas"
-      await addDoc(collection(db, 'demandas'), {
+      await addDoc(collection(db, "demandas"), {
         name: newTask.name,
         desc: newTask.desc,
         initDate: newTask.initDate,
         endDate: newTask.endDate,
         service: selectedServiceObj.id,
-        teammenber: selectedTeamMemberObj.id
-        ,
+        teammenber: selectedTeamMemberObj.id,
       });
-
-      console.log("Tarefa adicionada com sucesso!");
-      fetchTasks(setTasks)
-      setFilteredTasks(tasks)
+      fetchTasks(setTasks);
+      setLoading(false);
+      showMessage("Tarefa adicionada com sucesso!");
     } catch (error) {
       console.error("Erro ao adicionar a tarefa: ", error);
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   };
-  const deleteTask = async (taskId) => {
+
+  const deleteTask = async (taskId: string) => {
     try {
-      // Referência ao documento que deseja excluir
-      const taskDocRef = doc(db, 'demandas', taskId.toString()); // Converta taskId para string se necessário
-
-
-      setEditTaskModal(false); // Fechar o modal de edição, se estiver aberto
-      setLoading(true); // Ativar loading
-
-      // Exclui o documento
+      const taskDocRef = doc(db, "demandas", taskId);
+      setEditTaskModal(false);
+      setLoading(true);
       await deleteDoc(taskDocRef);
-
-      // Atualiza a lista de tarefas, removendo a tarefa excluída
-      const updatedTasks = tasks.filter(task => task.id !== taskId);
+      const updatedTasks = tasks.filter((task) => task.id !== taskId);
       setTasks(updatedTasks);
-      setFilteredTasks(updatedTasks); // Atualizar tarefas filtradas se necessário
+      setFilteredTasks(updatedTasks);
       setLoading(false);
-      showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
+      showMessage("Tarefa excluída com sucesso!");
     } catch (error) {
-      console.error('Erro ao excluir tarefa: ', error);
       setLoading(false);
+      showMessage("Erro ao excluir tarefa");
+      console.error("Erro ao excluir tarefa: ", error);
     }
   };
+
   const editTask = async () => {
+    if (!currentTask) return;
+
+    const validation = validateSelection();
+    if (!validation) return;
+
+    const { selectedServiceObj, selectedTeamMemberObj } = validation;
+
     try {
-      if (currentTask) {
-        setEditTaskModal(false); // Fechar o modal de edição
-        setLoading(true); // Ativar loading
-
-        // Referência ao documento que deseja atualizar
-        const taskDocRef = doc(db, 'demandas', currentTask.id.toString()); // Converta currentTask.id para string se necessário
-        if (selectedService === null || selectedTeamMember === null) {
-          showMessage("Por favor, selecione um serviço e um membro da equipe.");
-          return;
-        }
-
-        const selectedServiceObj = services.find(s => s.id === selectedService);
-        const selectedTeamMemberObj = team.find(m => m.id === selectedTeamMember);
-
-        if (!selectedServiceObj || !selectedTeamMemberObj) {
-          showMessage("Serviço ou Membro da equipe inválidos.");
-          return;
-        }
-
-        // Atualiza o documento no Firestore
-        await updateDoc(taskDocRef, {
-          name: currentTask.name,
-          desc: currentTask.desc,
-          initDate: currentTask.initDate,
-          endDate: currentTask.endDate,
-          service: selectedServiceObj.id,
-          teammenber: selectedTeamMemberObj.id
-        });
-
-        // Atualiza a lista de tarefas localmente
-        const updatedTasks = tasks.map((task) =>
-          task.id === currentTask.id ? currentTask : task
-        );
-        fetchTasks(setTasks);
-        setFilteredTasks(updatedTasks); // Atualiza tarefas filtradas se necessário
-        setLoading(false);
-        showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
-      }
+      setEditTaskModal(false);
+      setLoading(true);
+      const taskDocRef = doc(db, "demandas", currentTask.id.toString());
+      await updateDoc(taskDocRef, {
+        name: currentTask.name,
+        desc: currentTask.desc,
+        initDate: currentTask.initDate,
+        endDate: currentTask.endDate,
+        service: selectedServiceObj.id,
+        teammenber: selectedTeamMemberObj.id,
+      });
+      fetchTasks(setTasks);
+      setLoading(false);
+      showMessage("Tarefa editada com sucesso!");   
     } catch (error) {
-      console.error('Erro ao editar tarefa: ', error);
-      setLoading(false); // Garantir que o loading seja desativado em caso de erro
+      setLoading(false);
+      showMessage("Erro ao editar tarefa");
+      console.error("Erro ao editar tarefa: ", error);
     }
   };
+
+  const openCreateTaskModal = () => {
+    fetchservices(setServices);
+    fetchTeam(setTeam);
+    setCreateTaskModal(true);
+  };
+  
+  const openEditTaskModal = (task) => {
+    fetchservices(setServices);
+    fetchTeam(setTeam);
+    setCurrentTask(task);
+    setSelectedService(task.service ? task.service.id : null);
+    setSelectedTeamMember(task.teammenber ? task.teammenber.id : null);
+    setEditTaskModal(true);
+  };
+  
 
   useEffect(() => {
     fetchTasks(setTasks);
@@ -149,18 +172,28 @@ export default function Home() {
 
   useEffect(() => {
     const filtered = tasks
-      .filter((task) => task.name.toLowerCase().includes(text.toLowerCase()) ||
-        task.service.name.toLowerCase().includes(text.toLowerCase()) ||
-        task.teammenber.name.toLowerCase().includes(text.toLowerCase()) ||
-        task.initDate.toLowerCase().includes(text.toLowerCase()) ||
-        task.endDate.toLowerCase().includes(text.toLowerCase())
+      .filter(
+        (task) =>
+          task.name.toLowerCase().includes(text.toLowerCase()) ||
+          task.service.name.toLowerCase().includes(text.toLowerCase()) ||
+          task.teammenber.name.toLowerCase().includes(text.toLowerCase()) ||
+          task.initDate.toLowerCase().includes(text.toLowerCase()) ||
+          task.endDate.toLowerCase().includes(text.toLowerCase())
       )
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
 
     setFilteredTasks(filtered);
   }, [text, tasks]);
 
-  const clearMessage = () => {
+  const showMessage = (msg: string) => {
+    setMessage(msg);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
     setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -170,48 +203,17 @@ export default function Home() {
     }, 3000);
   };
 
-  const showMessage = (msg: string) => {
-    setMessage(msg);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-    clearMessage();
-  };
-
-  // const resetNewTask = () => {
-  //   setNewTask({
-  //     id: "",
-  //     name: "",
-  //     desc: "",
-  //     initDate: "",
-  //     endDate: "",
-  //     idservice: "",
-  //     idmenber: ""
-  //   });
-  //   setSelectedService(null);
-  //   setSelectedTeamMember(null);
-  // };
-
   const renderItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
       style={styles.taskItem}
-      onPress={() => {
-        setCurrentTask(item);
-        setSelectedService(item.service ? item.service.id : null);
-        setSelectedTeamMember(item.teammenber ? item.teammenber.id : null);
-        setEditTaskModal(true);
-        fetchservices(setServices);
-        fetchTeam(setTeam);
-      }}
+      onPress={() => openEditTaskModal(item)}
     >
       <Text style={styles.taskTitle}>{item.name}</Text>
       <Text>{item.desc}</Text>
       <Text>Início: {item.initDate}</Text>
       <Text>Fim: {item.endDate}</Text>
-      <Text>Serviço: {item.service ? item.service.name : 'N/A'}</Text>
-      <Text>Membro: {item.teammenber ? item.teammenber.name : 'N/A'}</Text>
+      <Text>Serviço: {item.service?.name || "N/A"}</Text>
+      <Text>Membro: {item.teammenber?.name || "N/A"}</Text>
     </TouchableOpacity>
   );
 
@@ -230,11 +232,7 @@ export default function Home() {
           style={styles.input}
         />
         <TouchableOpacity
-          onPress={() => {
-            setCreateTaskModal(true)
-            fetchservices(setServices);
-            fetchTeam(setTeam);
-          }}
+          onPress={openCreateTaskModal}
           style={styles.createButton}
         >
           <Text style={styles.buttonText}>Create New Task</Text>
@@ -254,14 +252,8 @@ export default function Home() {
           <Text style={styles.messageText}>{message}</Text>
         </Animated.View>
       )}
-
       {loading && (
-        <Modal
-          transparent={true}
-          animationType="fade"
-          visible={loading}
-          onRequestClose={() => { }}
-        >
+        <Modal transparent animationType="fade" visible={loading}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#000" />
           </View>
@@ -270,7 +262,7 @@ export default function Home() {
 
       {/* Modal de criação de tarefa */}
       <Modal
-        transparent={true}
+        transparent
         animationType="fade"
         visible={createTaskModal}
         onRequestClose={() => setCreateTaskModal(false)}
@@ -280,185 +272,171 @@ export default function Home() {
           onPress={() => setCreateTaskModal(false)}
           style={styles.modalBackground}
         >
-          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Create New Task</Text>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Create Task</Text>
             <TextInput
-              placeholder="Task Name"
-              onChangeText={(text) => setNewTask({ ...newTask, name: text })}
+              style={styles.input}
               value={newTask.name}
-              style={styles.modalInput}
-              editable={!loading}
+              onChangeText={(text) => setNewTask({ ...newTask, name: text })}
+              placeholder="Task Name"
             />
             <TextInput
-              placeholder="Description"
-              onChangeText={(text) => {
-                if (text.length <= descMaxLength) {
-                  setNewTask({ ...newTask, desc: text });
-                }
-              }}
+              style={styles.input}
               value={newTask.desc}
-              style={[styles.modalInput, styles.descInput]}
-              editable={!loading}
-              multiline={true}
+              onChangeText={(text) => setNewTask({ ...newTask, desc: text })}
+              placeholder="Description"
+              maxLength={descMaxLength}
             />
-            <Text style={styles.charCount}>
-              {newTask.desc.length}/{descMaxLength} caracteres
-            </Text>
-            <TextInput
-              placeholder="Start Date (YYYY-MM-DD)"
-              onChangeText={(text) => setNewTask({ ...newTask, initDate: text })}
+            <TextInputMask
+              type={"datetime"}
+              options={{
+                format: "DD/MM/YYYY",
+              }}
               value={newTask.initDate}
-              style={styles.modalInput}
-              editable={!loading}
+              onChangeText={(formatted) =>
+                setNewTask({ ...newTask, initDate: formatted })
+              }
+              placeholder="Start Date"
+              style={styles.input}
             />
-            <TextInput
-              placeholder="End Date (YYYY-MM-DD)"
-              onChangeText={(text) => setNewTask({ ...newTask, endDate: text })}
+            <TextInputMask
+              type={"datetime"}
+              options={{
+                format: "DD/MM/YYYY",
+              }}
               value={newTask.endDate}
-              style={styles.modalInput}
-              editable={!loading}
+              onChangeText={(formatted) =>
+                setNewTask({ ...newTask, endDate: formatted })
+              }
+              placeholder="End Date"
+              style={styles.input}
             />
-            {/* Picker para seleção de serviço */}
             <Picker
               selectedValue={selectedService}
+              onValueChange={setSelectedService}
               style={styles.picker}
-              onValueChange={(itemValue) => setSelectedService(itemValue)}
             >
-              <Picker.Item label="Select Service" value={null} />
               {services.map((service) => (
-                <Picker.Item key={service.id} label={service.name} value={service.id} />
+                <Picker.Item
+                  key={service.id}
+                  label={service.name}
+                  value={service.id}
+                />
               ))}
             </Picker>
-            {/* Picker para seleção de funcionário */}
             <Picker
               selectedValue={selectedTeamMember}
+              onValueChange={setSelectedTeamMember}
               style={styles.picker}
-              onValueChange={(itemValue) => setSelectedTeamMember(itemValue)}
             >
-              <Picker.Item label="Select Team Member" value={null} />
               {team.map((member) => (
-                <Picker.Item key={member.id} label={member.name} value={member.id} />
+                <Picker.Item
+                  key={member.id}
+                  label={member.name}
+                  value={member.id}
+                />
               ))}
             </Picker>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalActionButton}
-                onPress={() => addTask(newTask)}
-                disabled={loading}
-              >
-                <Text style={styles.modalActionButtonText}>Create</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setCreateTaskModal(false)}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={() => addTask(newTask)}
+            >
+              <Text style={styles.buttonText}>Create</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
       {/* Modal de edição de tarefa */}
       <Modal
-        transparent={true}
+        transparent
         animationType="fade"
         visible={editTaskModal}
-        onRequestClose={() => !loading && setEditTaskModal(false)}
+        onRequestClose={() => setEditTaskModal(false)}
       >
         <TouchableOpacity
           activeOpacity={1}
-          onPress={() => !loading && setEditTaskModal(false)}
+          onPress={() => setEditTaskModal(false)}
           style={styles.modalBackground}
         >
-          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Task</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => !loading && setEditTaskModal(false)}
-              >
-                <Icon name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            {currentTask && (
-              <>
-                <TextInput
-                  placeholder="Task Name"
-                  onChangeText={(text) => setCurrentTask({ ...currentTask, name: text })}
-                  value={currentTask.name}
-                  style={styles.modalInput}
-                  editable={!loading}
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Edit Task</Text>
+            <TextInput
+              style={styles.input}
+              value={currentTask?.name}
+              onChangeText={(text) =>
+                setCurrentTask((prev) => ({ ...prev, name: text }))
+              }
+              placeholder="Task Name"
+            />
+            <TextInput
+              style={styles.input}
+              value={currentTask?.desc}
+              onChangeText={(text) =>
+                setCurrentTask((prev) => ({ ...prev, desc: text }))
+              }
+              placeholder="Description"
+              maxLength={descMaxLength}
+            />
+            <TextInputMask
+              type={"datetime"}
+              options={{
+                format: "DD/MM/YYYY",
+              }}
+              value={currentTask?.initDate || ""}
+              onChangeText={(formatted) =>
+                setCurrentTask((prev) => ({ ...prev, initDate: formatted }))
+              }
+              placeholder="Start Date"
+              style={styles.input}
+            />
+            <TextInputMask
+              type={"datetime"}
+              options={{
+                format: "DD/MM/YYYY",
+              }}
+              value={currentTask?.endDate || ""}
+              onChangeText={(formatted) =>
+                setCurrentTask((prev) => ({ ...prev, endDate: formatted }))
+              }
+              placeholder="End Date"
+              style={styles.input}
+            />
+            <Picker
+              selectedValue={selectedService}
+              onValueChange={setSelectedService}
+              style={styles.picker}
+            >
+              {services.map((service) => (
+                <Picker.Item
+                  key={service.id}
+                  label={service.name}
+                  value={service.id}
                 />
-                <TextInput
-                  placeholder="Description"
-                  onChangeText={(text) => {
-                    if (text.length <= descMaxLength) {
-                      setCurrentTask({ ...currentTask, desc: text });
-                    }
-                  }}
-                  value={currentTask.desc}
-                  style={[styles.modalInput, styles.descInput]}
-                  editable={!loading}
-                  multiline={true}
+              ))}
+            </Picker>
+            <Picker
+              selectedValue={selectedTeamMember}
+              onValueChange={setSelectedTeamMember}
+              style={styles.picker}
+            >
+              {team.map((member) => (
+                <Picker.Item
+                  key={member.id}
+                  label={member.name}
+                  value={member.id}
                 />
-                <Text style={styles.charCount}>
-                  {currentTask.desc.length}/{descMaxLength} caracteres
-                </Text>
-                <TextInput
-                  placeholder="Start Date (YYYY-MM-DD)"
-                  onChangeText={(text) => setCurrentTask({ ...currentTask, initDate: text })}
-                  value={currentTask.initDate}
-                  style={styles.modalInput}
-                  editable={!loading}
-                />
-                <TextInput
-                  placeholder="End Date (YYYY-MM-DD)"
-                  onChangeText={(text) => setCurrentTask({ ...currentTask, endDate: text })}
-                  value={currentTask.endDate}
-                  style={styles.modalInput}
-                  editable={!loading}
-                />
-                {/* Picker para editar o serviço */}
-                <Picker
-                  selectedValue={selectedService}
-                  style={styles.picker}
-                  onValueChange={(itemValue) => setSelectedService(itemValue)}
-                >
-                  <Picker.Item label="Select Service" value={null} />
-                  {services.map((service) => (
-                    <Picker.Item key={service.id} label={service.name} value={service.id} />
-                  ))}
-                </Picker>
-                {/* Picker para editar o funcionário */}
-                <Picker
-                  selectedValue={selectedTeamMember}
-                  style={styles.picker}
-                  onValueChange={(itemValue) => setSelectedTeamMember(itemValue)}
-                >
-                  <Picker.Item label="Select Team Member" value={null} />
-                  {team.map((member) => (
-                    <Picker.Item key={member.id} label={member.name} value={member.id} />
-                  ))}
-                </Picker>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.modalActionButton}
-                    onPress={editTask}
-                    disabled={loading}
-                  >
-                    <Text style={styles.modalActionButtonText}>Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalCancelButton}
-                    onPress={() => currentTask && deleteTask(currentTask.id)}
-                    disabled={loading}
-                  >
-                    <Text style={styles.modalCancelButtonText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+              ))}
+            </Picker>
+            <TouchableOpacity style={styles.submitButton} onPress={editTask}>
+              <Text style={styles.buttonText}>Save Changes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "red" }]}
+              onPress={() => currentTask && deleteTask(currentTask.id)}
+            >
+              <Text style={styles.buttonText}>Delete Task</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -626,5 +604,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
     zIndex: 999,
+  },
+  submitButton: {
+    backgroundColor: '#6200ea',
+    padding: 10,
+    borderRadius: 5,
+    marginVertical: 5,
+    alignItems: 'center',
   },
 });
