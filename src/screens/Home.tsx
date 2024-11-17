@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Feather } from "@expo/vector-icons";
 import {
   FlatList,
   Text,
@@ -37,6 +38,8 @@ export default function Home() {
   const [text, onChangeText] = useState("");
   const [createTaskModal, setCreateTaskModal] = useState(false);
   const [editTaskModal, setEditTaskModal] = useState(false);
+  const [FilterModal, setFilterModal] = useState(false);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState<salveTask>({
@@ -48,15 +51,20 @@ export default function Home() {
     idservice: "",
     idmenber: "",
   });
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+
   const [services, setServices] = useState<Service[]>(ServicesList);
   const [team, setTeam] = useState<TeamMenber[]>(Team);
   const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(null);
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(
+    null
+  );
+
   const [loading, setLoading] = useState(false);
+  const [loadingAnimation, setLoadingAnimation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [Visualmessage, setVisualMessage] = useState(false);
   const [descMaxLength] = useState(200);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const validateSelection = () => {
     if (selectedService === null || selectedTeamMember === null) {
@@ -71,7 +79,6 @@ export default function Home() {
     }
     return { selectedServiceObj, selectedTeamMemberObj };
   };
-
   const addTask = async (newTask: salveTask) => {
     const validation = validateSelection();
     if (!validation) return;
@@ -79,8 +86,8 @@ export default function Home() {
     const { selectedServiceObj, selectedTeamMemberObj } = validation;
 
     try {
-      setCreateTaskModal(false);
       setLoading(true);
+      setLoadingAnimation(true);
       await addDoc(collection(db, "demandas"), {
         name: newTask.name,
         desc: newTask.desc,
@@ -89,34 +96,50 @@ export default function Home() {
         service: selectedServiceObj.id,
         teammenber: selectedTeamMemberObj.id,
       });
-      fetchTasks(setTasks);
-      setLoading(false);
-      showMessage("Tarefa adicionada com sucesso!");
+      await fetchTasks(setTasks);
+      setLoadingAnimation(false);
+      setMessage("Tarefa adicionada com sucesso!");
+      setVisualMessage(true);
     } catch (error) {
       console.error("Erro ao adicionar a tarefa: ", error);
+      setMessage("Erro ao adicionar a tarefa.");
+      setVisualMessage(true);
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setCreateTaskModal(false);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+      }, 1000);
     }
   };
-
   const deleteTask = async (taskId: string) => {
     try {
-      const taskDocRef = doc(db, "demandas", taskId);
-      setEditTaskModal(false);
       setLoading(true);
+      setLoadingAnimation(true);
+
+      const taskDocRef = doc(db, "demandas", taskId);
       await deleteDoc(taskDocRef);
       const updatedTasks = tasks.filter((task) => task.id !== taskId);
       setTasks(updatedTasks);
       setFilteredTasks(updatedTasks);
-      setLoading(false);
-      showMessage("Tarefa excluída com sucesso!");
+      setLoadingAnimation(false);
+      setMessage("Tarefa excluída com sucesso!");
+      setVisualMessage(true);
     } catch (error) {
-      setLoading(false);
-      showMessage("Erro ao excluir tarefa");
       console.error("Erro ao excluir tarefa: ", error);
+      setLoadingAnimation(false);
+      setMessage("Erro ao excluir tarefa.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setEditTaskModal(false);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+      }, 1000);
     }
   };
-
   const editTask = async () => {
     if (!currentTask) return;
 
@@ -126,8 +149,9 @@ export default function Home() {
     const { selectedServiceObj, selectedTeamMemberObj } = validation;
 
     try {
-      setEditTaskModal(false);
       setLoading(true);
+      setLoadingAnimation(true);
+
       const taskDocRef = doc(db, "demandas", currentTask.id.toString());
       await updateDoc(taskDocRef, {
         name: currentTask.name,
@@ -137,22 +161,41 @@ export default function Home() {
         service: selectedServiceObj.id,
         teammenber: selectedTeamMemberObj.id,
       });
-      fetchTasks(setTasks);
-      setLoading(false);
-      showMessage("Tarefa editada com sucesso!");   
+
+      await fetchTasks(setTasks);
+      setLoadingAnimation(false);
+      setMessage("Tarefa editada com sucesso!");
+      setVisualMessage(true);
     } catch (error) {
-      setLoading(false);
-      showMessage("Erro ao editar tarefa");
       console.error("Erro ao editar tarefa: ", error);
+      setMessage("Erro ao editar tarefa.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setEditTaskModal(false);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+      }, 1000);
     }
   };
 
   const openCreateTaskModal = () => {
+    setNewTask({
+      id: "",
+      name: "",
+      desc: "",
+      initDate: "",
+      endDate: "",
+      idservice: "",
+      idmenber: "",
+    });
+    setSelectedService(null);
+    setSelectedTeamMember(null);
     fetchservices(setServices);
     fetchTeam(setTeam);
     setCreateTaskModal(true);
   };
-  
   const openEditTaskModal = (task) => {
     fetchservices(setServices);
     fetchTeam(setTeam);
@@ -161,7 +204,9 @@ export default function Home() {
     setSelectedTeamMember(task.teammenber ? task.teammenber.id : null);
     setEditTaskModal(true);
   };
-  
+  const openFilterModal = () => {
+    setFilterModal(true);
+  };
 
   useEffect(() => {
     fetchTasks(setTasks);
@@ -189,20 +234,7 @@ export default function Home() {
 
   const showMessage = (msg: string) => {
     setMessage(msg);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-    setTimeout(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }).start(() => setMessage(null));
-    }, 3000);
   };
-
   const renderItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
       style={styles.taskItem}
@@ -218,227 +250,394 @@ export default function Home() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.MainContainer}>
+      <View style={styles.HeaderContent} />
 
-      <View style={styles.header}>
-        <Text style={styles.headerText}>My Tasks</Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <TextInput
-          onChangeText={onChangeText}
-          value={text}
-          placeholder="Search tasks..."
-          style={styles.input}
-        />
-        <TouchableOpacity
-          onPress={openCreateTaskModal}
-          style={styles.createButton}
+      <View style={styles.GenericContainer}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 10,
+            width: "100%",
+          }}
         >
-          <Text style={styles.buttonText}>Create New Task</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.FilterButton}
+            onPress={openFilterModal}
+          >
+            <Feather name="filter" size={20} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={{ position: "relative", flex: 1 }}>
+            <TextInput
+              onChangeText={onChangeText}
+              value={text}
+              placeholder="Search tasks..."
+              style={styles.input}
+            />
+            <View style={styles.searchButton}>
+              <Feather name="search" size={20} />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.GenericContainer2}>
+          {filteredTasks && filteredTasks.length === 0 ? (
+            text.trim() !== "" ? (
+              <View style={styles.MessageContent}>
+                <Text style={styles.MessageText}>
+                  Nenhuma tarefa encontrada
+                </Text>
+              </View>
+            ) : (
+              <ActivityIndicator
+                style={styles.LoadAnimation}
+                size={100}
+                color="#6200ea"
+              />
+            )
+          ) : (
+            <FlatList
+              data={filteredTasks}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          )}
+        </View>
       </View>
 
-      <FlatList
-        style={styles.flatList}
-        contentContainerStyle={styles.flatListContent}
-        data={filteredTasks}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-      />
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={openCreateTaskModal}
+      >
+        <Text style={styles.CreateButtonText}>Criar nova tarefa</Text>
+      </TouchableOpacity>
 
-      {message && (
-        <Animated.View style={[styles.messageContainer, { opacity: fadeAnim }]}>
-          <Text style={styles.messageText}>{message}</Text>
-        </Animated.View>
-      )}
-      {loading && (
-        <Modal transparent animationType="fade" visible={loading}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#000" />
-          </View>
-        </Modal>
-      )}
-
-      {/* Modal de criação de tarefa */}
+      {/* Modal para criar tarefa */}
       <Modal
         transparent
-        animationType="fade"
         visible={createTaskModal}
-        onRequestClose={() => setCreateTaskModal(false)}
+        animationType="slide"
+        onRequestClose={() => {
+          setCreateTaskModal(false);
+          setLoading(false);
+          setLoadingAnimation(false);
+          setVisualMessage(false);
+        }}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setCreateTaskModal(false)}
-          style={styles.modalBackground}
-        >
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Create Task</Text>
-            <TextInput
-              style={styles.input}
-              value={newTask.name}
-              onChangeText={(text) => setNewTask({ ...newTask, name: text })}
-              placeholder="Task Name"
-            />
-            <TextInput
-              style={styles.input}
-              value={newTask.desc}
-              onChangeText={(text) => setNewTask({ ...newTask, desc: text })}
-              placeholder="Description"
-              maxLength={descMaxLength}
-            />
-            <TextInputMask
-              type={"datetime"}
-              options={{
-                format: "DD/MM/YYYY",
-              }}
-              value={newTask.initDate}
-              onChangeText={(formatted) =>
-                setNewTask({ ...newTask, initDate: formatted })
-              }
-              placeholder="Start Date"
-              style={styles.input}
-            />
-            <TextInputMask
-              type={"datetime"}
-              options={{
-                format: "DD/MM/YYYY",
-              }}
-              value={newTask.endDate}
-              onChangeText={(formatted) =>
-                setNewTask({ ...newTask, endDate: formatted })
-              }
-              placeholder="End Date"
-              style={styles.input}
-            />
-            <Picker
-              selectedValue={selectedService}
-              onValueChange={setSelectedService}
-              style={styles.picker}
-            >
-              {services.map((service) => (
-                <Picker.Item
-                  key={service.id}
-                  label={service.name}
-                  value={service.id}
-                />
-              ))}
-            </Picker>
-            <Picker
-              selectedValue={selectedTeamMember}
-              onValueChange={setSelectedTeamMember}
-              style={styles.picker}
-            >
-              {team.map((member) => (
-                <Picker.Item
-                  key={member.id}
-                  label={member.name}
-                  value={member.id}
-                />
-              ))}
-            </Picker>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <TouchableOpacity
-              style={styles.submitButton}
-              onPress={() => addTask(newTask)}
+              onPress={() => {
+                setCreateTaskModal(false);
+                setLoading(false);
+                setLoadingAnimation(false);
+                setVisualMessage(false);
+              }}
+              style={styles.closeButton}
             >
-              <Text style={styles.buttonText}>Create</Text>
+              <Feather name="x" size={20} />
             </TouchableOpacity>
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{message}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Nova Tarefa</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newTask.name}
+                  onChangeText={(text) =>
+                    setNewTask({ ...newTask, name: text })
+                  }
+                  placeholder="Task Name"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={newTask.desc}
+                  onChangeText={(text) =>
+                    setNewTask({ ...newTask, desc: text })
+                  }
+                  placeholder="Description"
+                  maxLength={descMaxLength}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={newTask.initDate}
+                  onChangeText={(formatted) =>
+                    setNewTask({ ...newTask, initDate: formatted })
+                  }
+                  placeholder="Start Date"
+                  style={styles.input}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={newTask.endDate}
+                  onChangeText={(formatted) =>
+                    setNewTask({ ...newTask, endDate: formatted })
+                  }
+                  placeholder="End Date"
+                  style={styles.input}
+                />
+                <Picker
+                  selectedValue={selectedService}
+                  onValueChange={setSelectedService}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Selececione um serviço" value="null" />
+                  {services.map((service) => (
+                    <Picker.Item
+                      key={service.id}
+                      label={service.name}
+                      value={service.id}
+                    />
+                  ))}
+                </Picker>
+                <Picker
+                  selectedValue={selectedTeamMember}
+                  onValueChange={setSelectedTeamMember}
+                  style={styles.picker}
+                >
+                  <Picker.Item
+                    label="Selececione um Funcionario"
+                    value="null"
+                  />
+                  {team.map((member) => (
+                    <Picker.Item
+                      key={member.id}
+                      label={member.name}
+                      value={member.id}
+                    />
+                  ))}
+                </Picker>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
+                >
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => addTask(newTask)}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
-      {/* Modal de edição de tarefa */}
+      {/* Modal para editar tarefa */}
       <Modal
         transparent
-        animationType="fade"
         visible={editTaskModal}
-        onRequestClose={() => setEditTaskModal(false)}
+        animationType="slide"
+        onRequestClose={() => {
+          setEditTaskModal(false);
+          setLoading(false);
+          setLoadingAnimation(false);
+          setVisualMessage(false);
+        }}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setEditTaskModal(false)}
-          style={styles.modalBackground}
-        >
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Edit Task</Text>
-            <TextInput
-              style={styles.input}
-              value={currentTask?.name}
-              onChangeText={(text) =>
-                setCurrentTask((prev) => ({ ...prev, name: text }))
-              }
-              placeholder="Task Name"
-            />
-            <TextInput
-              style={styles.input}
-              value={currentTask?.desc}
-              onChangeText={(text) =>
-                setCurrentTask((prev) => ({ ...prev, desc: text }))
-              }
-              placeholder="Description"
-              maxLength={descMaxLength}
-            />
-            <TextInputMask
-              type={"datetime"}
-              options={{
-                format: "DD/MM/YYYY",
-              }}
-              value={currentTask?.initDate || ""}
-              onChangeText={(formatted) =>
-                setCurrentTask((prev) => ({ ...prev, initDate: formatted }))
-              }
-              placeholder="Start Date"
-              style={styles.input}
-            />
-            <TextInputMask
-              type={"datetime"}
-              options={{
-                format: "DD/MM/YYYY",
-              }}
-              value={currentTask?.endDate || ""}
-              onChangeText={(formatted) =>
-                setCurrentTask((prev) => ({ ...prev, endDate: formatted }))
-              }
-              placeholder="End Date"
-              style={styles.input}
-            />
-            <Picker
-              selectedValue={selectedService}
-              onValueChange={setSelectedService}
-              style={styles.picker}
-            >
-              {services.map((service) => (
-                <Picker.Item
-                  key={service.id}
-                  label={service.name}
-                  value={service.id}
-                />
-              ))}
-            </Picker>
-            <Picker
-              selectedValue={selectedTeamMember}
-              onValueChange={setSelectedTeamMember}
-              style={styles.picker}
-            >
-              {team.map((member) => (
-                <Picker.Item
-                  key={member.id}
-                  label={member.name}
-                  value={member.id}
-                />
-              ))}
-            </Picker>
-            <TouchableOpacity style={styles.submitButton} onPress={editTask}>
-              <Text style={styles.buttonText}>Save Changes</Text>
-            </TouchableOpacity>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: "red" }]}
-              onPress={() => currentTask && deleteTask(currentTask.id)}
+              onPress={() => {
+                setEditTaskModal(false);
+                setLoading(false);
+                setLoadingAnimation(false);
+                setVisualMessage(false);
+              }}
+              style={styles.closeButton}
             >
-              <Text style={styles.buttonText}>Delete Task</Text>
+              <Feather name="x" size={20} />
             </TouchableOpacity>
+
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{message}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Editar Tarefa</Text>
+                <TextInput
+                  style={styles.input}
+                  value={currentTask?.name}
+                  onChangeText={(text) =>
+                    setCurrentTask((prev) => ({ ...prev, name: text }))
+                  }
+                  placeholder="Task Name"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={currentTask?.desc}
+                  onChangeText={(text) =>
+                    setCurrentTask((prev) => ({ ...prev, desc: text }))
+                  }
+                  placeholder="Description"
+                  maxLength={descMaxLength}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={currentTask?.initDate || ""}
+                  onChangeText={(formatted) =>
+                    setCurrentTask((prev) => ({ ...prev, initDate: formatted }))
+                  }
+                  placeholder="Start Date"
+                  style={styles.input}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={currentTask?.endDate || ""}
+                  onChangeText={(formatted) =>
+                    setCurrentTask((prev) => ({ ...prev, endDate: formatted }))
+                  }
+                  placeholder="End Date"
+                  style={styles.input}
+                />
+                <Picker
+                  selectedValue={selectedService}
+                  onValueChange={setSelectedService}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Selecione um serviço" value="null" />
+                  {services.map((service) => (
+                    <Picker.Item
+                      key={service.id}
+                      label={service.name}
+                      value={service.id}
+                    />
+                  ))}
+                </Picker>
+                <Picker
+                  selectedValue={selectedTeamMember}
+                  onValueChange={setSelectedTeamMember}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Selecione um funcionário" value="null" />
+                  {team.map((member) => (
+                    <Picker.Item
+                      key={member.id}
+                      label={member.name}
+                      value={member.id}
+                    />
+                  ))}
+                </Picker>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
+                >
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={editTask}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar alterações</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.DeleteButton, { backgroundColor: "red" }]}
+                    onPress={() => currentTask && deleteTask(currentTask.id)}
+                  >
+                    <Text style={styles.DeleteButtonText}>Excluir Tarefa</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
-        </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* Modal para editar tarefa */}
+      <Modal
+        transparent
+        visible={FilterModal}
+        animationType="slide"
+        onRequestClose={() => {
+          setFilterModal(false);
+          setLoading(false);
+          setLoadingAnimation(false);
+          setVisualMessage(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              onPress={() => {
+                setFilterModal(false);
+                setLoading(false);
+                setLoadingAnimation(false);
+                setVisualMessage(false);
+              }}
+              style={styles.closeButton}
+            >
+              <Feather name="x" size={20} />
+            </TouchableOpacity>
+
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{message}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Filter Modal</Text>
+              </>
+            )}
+          </View>
+        </View>
       </Modal>
 
     </SafeAreaView>
@@ -446,170 +645,156 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  MainContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    flexDirection: "column",
+    backgroundColor: "#eeeeee",
+    position: "relative",
   },
-  header: {
-    height: 80,
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingVertical: 10,
-    backgroundColor: '#6200ea',
+  GenericContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    padding: 10,
+    gap: 10,
   },
-  headerText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+  GenericContainer2: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
   },
-  searchContainer: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    height: "auto",
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    fontSize: 16,
-    marginBottom: 10,
-    height: 40,
+  HeaderContent: {
+    height: 38,
+    backgroundColor: "#fff",
   },
   createButton: {
-    width: '100%',
+    bottom: 10,
+    right: 10,
+    position: "absolute",
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 8,
-    backgroundColor: '#6200ea',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#6200ea",
     height: 40,
+    zIndex: 999,
   },
-  buttonText: {
+  CreateButtonText: {
     fontSize: 16,
-    color: '#fff',
+    color: "#fff",
   },
-  flatList: {
+  FilterButton: {
+    height: 40,
+    width: 40,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 5,
+    borderRadius: 8,
+    backgroundColor: "#6200ea",
+  },
+  modalOverlay: {
     flex: 1,
+    justifyContent: "flex-end",
+    width: "100%",
+    backgroundColor: "#d3d3d375",
   },
-  flatListContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  modalContent: {
+    position: "relative",
+    width: "100%",
+    minHeight: 400,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: "#6200ea",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  SaveButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  DeleteButton: {
+    flex: 1,
+    backgroundColor: "red",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  DeleteButtonText: {
+    fontSize: 16,
+    color: "#fff",
   },
   taskItem: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 15,
     marginBottom: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
   },
   taskTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 5,
-  },
-  modalBackground: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    borderRadius: 8,
-    padding: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalCloseButton: {
-    padding: 5,
-  },
-  modalInput: {
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    paddingVertical: 8,
-    marginBottom: 20,
-  },
-  descInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    textAlign: 'right',
-    color: '#999',
-    marginBottom: 10,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  modalActionButton: {
-    backgroundColor: '#6200ea',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  modalActionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  modalCancelButton: {
-    backgroundColor: '#f44336',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  modalCancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
   },
   picker: {
     height: 50,
     marginVertical: 10,
   },
-  messageContainer: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    backgroundColor: '#6200ea',
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
     borderRadius: 8,
-    marginHorizontal: 20,
-    zIndex: 999,
-  },
-  messageText: {
-    color: '#fff',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     fontSize: 16,
+    marginBottom: 10,
+    height: 40,
+    backgroundColor: "#fff",
   },
-  loadingContainer: {
+  LoadAnimation: {
+    margin: "auto",
+  },
+  MessageContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: 999,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  submitButton: {
-    backgroundColor: '#6200ea',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 5,
-    alignItems: 'center',
+  MessageText: {
+    fontSize: 20,
+    fontWeight: "600",
+    textAlign: "center",
+    width: 250,
+  },
+  closeButton: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    padding: 5,
+    zIndex: 9999,
+  },
+  searchButton: {
+    position: "absolute",
+    right: 12,
+    top: 5,
+    padding: 5,
+    zIndex: 9999,
   },
 });
