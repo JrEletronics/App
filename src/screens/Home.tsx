@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
 import {
   FlatList,
@@ -39,7 +39,6 @@ export default function Home() {
   const [createTaskModal, setCreateTaskModal] = useState(false);
   const [editTaskModal, setEditTaskModal] = useState(false);
   const [FilterModal, setFilterModal] = useState(false);
-
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState<salveTask>({
@@ -52,14 +51,18 @@ export default function Home() {
     idmenber: "",
   });
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-
   const [services, setServices] = useState<Service[]>(ServicesList);
   const [team, setTeam] = useState<TeamMenber[]>(Team);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedTeamMember, setSelectedTeamMember] = useState<string | null>(
     null
   );
-
+  const [selectedFilterService, setSelectedFilterService] = useState<
+    string | null
+  >(null);
+  const [selectedFilterTeamMember, setSelectedFilterTeamMember] = useState<
+    string | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [loadingAnimation, setLoadingAnimation] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -110,6 +113,7 @@ export default function Home() {
         setLoading(false);
         setLoadingAnimation(false);
         setVisualMessage(false);
+        setMessage("");
       }, 1000);
     }
   };
@@ -137,6 +141,7 @@ export default function Home() {
         setLoading(false);
         setLoadingAnimation(false);
         setVisualMessage(false);
+        setMessage("");
       }, 1000);
     }
   };
@@ -176,6 +181,7 @@ export default function Home() {
         setLoading(false);
         setLoadingAnimation(false);
         setVisualMessage(false);
+        setMessage("");
       }, 1000);
     }
   };
@@ -215,23 +221,6 @@ export default function Home() {
     setFilteredTasks(Tasks);
   }, []);
 
-  useEffect(() => {
-    const filtered = tasks
-      .filter(
-        (task) =>
-          task.name.toLowerCase().includes(text.toLowerCase()) ||
-          task.service.name.toLowerCase().includes(text.toLowerCase()) ||
-          task.teammenber.name.toLowerCase().includes(text.toLowerCase()) ||
-          task.initDate.toLowerCase().includes(text.toLowerCase()) ||
-          task.endDate.toLowerCase().includes(text.toLowerCase())
-      )
-      .sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { numeric: true })
-      );
-
-    setFilteredTasks(filtered);
-  }, [text, tasks]);
-
   const showMessage = (msg: string) => {
     setMessage(msg);
   };
@@ -248,6 +237,117 @@ export default function Home() {
       <Text>Membro: {item.teammenber?.name || "N/A"}</Text>
     </TouchableOpacity>
   );
+
+  const [hasResults, setHasResults] = useState(true);
+  useEffect(() => {
+    const filtered = tasks
+      .filter((task) => {
+        const matchesText = task.name
+          .toLowerCase()
+          .startsWith(text.toLowerCase());
+
+        const matchesService =
+          selectedFilterService && selectedFilterService !== "null"
+            ? task.service.id === selectedFilterService
+            : true;
+
+        const matchesTeamMember =
+          selectedFilterTeamMember && selectedFilterTeamMember !== "null"
+            ? task.teammenber.id === selectedFilterTeamMember
+            : true;
+
+        return matchesText && matchesService && matchesTeamMember;
+      })
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
+
+    setFilteredTasks(filtered);
+    setHasResults(filtered.length > 0); // Define se há resultados
+  }, [text, tasks, selectedFilterService, selectedFilterTeamMember]);
+
+  const applyFilters = () => {
+    setLoading(true);
+
+    const filtered = tasks
+      .filter((task) => {
+        const matchesText = task.name
+          .toLowerCase()
+          .includes(text.toLowerCase());
+
+        const matchesService =
+          selectedFilterService && selectedFilterService !== "null"
+            ? task.service.id === selectedFilterService
+            : true;
+
+        const matchesTeamMember =
+          selectedFilterTeamMember && selectedFilterTeamMember !== "null"
+            ? task.teammenber.id === selectedFilterTeamMember
+            : true;
+
+        return matchesText && matchesService && matchesTeamMember;
+      })
+      .sort((a, b) =>
+        isOn
+          ? b.name.localeCompare(a.name, undefined, { numeric: true })
+          : a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
+    setFilteredTasks(filtered);
+    setFilterModal(false);
+    setLoading(false);
+  };
+
+  const clearFilters = () => {
+    setLoading(true);
+    setSelectedFilterService(null);
+    setSelectedFilterTeamMember(null);
+
+    const filtered = tasks
+      .filter((task) => {
+        const matchesText = task.name
+          .toLowerCase()
+          .includes(text.toLowerCase());
+        const matchesService =
+          selectedFilterService && selectedFilterService !== "null"
+            ? task.service.id === selectedFilterService
+            : true;
+        const matchesTeamMember =
+          selectedFilterTeamMember && selectedFilterTeamMember !== "null"
+            ? task.teammenber.id === selectedFilterTeamMember
+            : true;
+
+        return matchesText && matchesService && matchesTeamMember;
+      })
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
+    setFilteredTasks(filtered);
+    setFilterModal(false);
+    setLoading(false);
+  };
+
+  const [isOn, setIsOn] = useState(false);
+
+  const toggleOrder = () => {
+    setIsOn((prevState) => {
+      const newState = !prevState;
+      const sortedTasks = [...filteredTasks].sort((a, b) =>
+        newState
+          ? b.name.localeCompare(a.name, undefined, { numeric: true })
+          : a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
+      setFilteredTasks(sortedTasks);
+      return newState;
+    });
+  };
+
+  const [showLoading, setShowLoading] = useState(true);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setShowLoading(false);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   return (
     <SafeAreaView style={styles.MainContainer}>
@@ -269,6 +369,10 @@ export default function Home() {
             <Feather name="filter" size={20} color="#fff" />
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={toggleOrder} style={styles.FilterButton}>
+            <Text style={{ color: "#fff" }}>{isOn ? "Z-A" : "A-Z"}</Text>
+          </TouchableOpacity>
+
           <View style={{ position: "relative", flex: 1 }}>
             <TextInput
               onChangeText={onChangeText}
@@ -283,20 +387,26 @@ export default function Home() {
         </View>
 
         <View style={styles.GenericContainer2}>
-          {filteredTasks && filteredTasks.length === 0 ? (
-            text.trim() !== "" ? (
-              <View style={styles.MessageContent}>
-                <Text style={styles.MessageText}>
-                  Nenhuma tarefa encontrada
-                </Text>
-              </View>
-            ) : (
+          {filteredTasks.length === 0 ? (
+            showLoading ? (
               <ActivityIndicator
                 style={styles.LoadAnimation}
                 size={100}
                 color="#6200ea"
               />
+            ) : (
+              <View style={styles.MessageContent}>
+                <Text style={styles.MessageText}>
+                  {message || "Nenhuma tarefa encontrada"}
+                </Text>
+              </View>
             )
+          ) : !hasResults ? (
+            <View style={styles.MessageContent}>
+              <Text style={styles.MessageText}>
+                {message || "Nenhuma tarefa encontrada"}
+              </Text>
+            </View>
           ) : (
             <FlatList
               data={filteredTasks}
@@ -403,7 +513,7 @@ export default function Home() {
                   onValueChange={setSelectedService}
                   style={styles.picker}
                 >
-                  <Picker.Item label="Selececione um serviço" value="null" />
+                  <Picker.Item label="Selececione um serviço" value={null} />
                   {services.map((service) => (
                     <Picker.Item
                       key={service.id}
@@ -419,7 +529,7 @@ export default function Home() {
                 >
                   <Picker.Item
                     label="Selececione um Funcionario"
-                    value="null"
+                    value={null}
                   />
                   {team.map((member) => (
                     <Picker.Item
@@ -540,7 +650,7 @@ export default function Home() {
                   onValueChange={setSelectedService}
                   style={styles.picker}
                 >
-                  <Picker.Item label="Selecione um serviço" value="null" />
+                  <Picker.Item label="Selecione um serviço" value={null} />
                   {services.map((service) => (
                     <Picker.Item
                       key={service.id}
@@ -554,7 +664,7 @@ export default function Home() {
                   onValueChange={setSelectedTeamMember}
                   style={styles.picker}
                 >
-                  <Picker.Item label="Selecione um funcionário" value="null" />
+                  <Picker.Item label="Selecione um funcionário" value={null} />
                   {team.map((member) => (
                     <Picker.Item
                       key={member.id}
@@ -616,30 +726,64 @@ export default function Home() {
               <Feather name="x" size={20} />
             </TouchableOpacity>
 
-            {loading ? (
-              <>
-                {loadingAnimation && (
-                  <ActivityIndicator
-                    style={styles.LoadAnimation}
-                    size={100}
-                    color="#6200ea"
+            <Text style={styles.modalTitle}>Filtros</Text>
+
+            <View style={styles.GenericContainer}>
+              <Picker
+                selectedValue={selectedFilterService}
+                onValueChange={setSelectedFilterService}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecione um serviço" value="null" />
+                {services.map((service) => (
+                  <Picker.Item
+                    key={service.id}
+                    label={service.name}
+                    value={service.id}
                   />
-                )}
-                {Visualmessage && (
-                  <View style={styles.MessageContent}>
-                    <Text style={styles.MessageText}>{message}</Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalTitle}>Filter Modal</Text>
-              </>
-            )}
+                ))}
+              </Picker>
+
+              <Picker
+                selectedValue={selectedFilterTeamMember}
+                onValueChange={setSelectedFilterTeamMember}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecione um Funcionário" value="null" />
+                {team.map((member) => (
+                  <Picker.Item
+                    key={member.id}
+                    label={member.name}
+                    value={member.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            <View
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                gap: 10,
+                width: "100%",
+              }}
+            >
+              <TouchableOpacity
+                onPress={clearFilters}
+                style={styles.saveButton}
+              >
+                <Text style={styles.SaveButtonText}>Limpar Filtros</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={applyFilters}
+                style={styles.saveButton}
+              >
+                <Text style={styles.SaveButtonText}>Aplicar Filtro</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -796,5 +940,28 @@ const styles = StyleSheet.create({
     top: 5,
     padding: 5,
     zIndex: 9999,
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleButton: {
+    width: 100,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 25,
+  },
+  on: {
+    backgroundColor: "#4caf50",
+  },
+  off: {
+    backgroundColor: "#f44336",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
