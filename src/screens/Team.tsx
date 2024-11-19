@@ -1,497 +1,661 @@
-import { useState, useEffect, useRef } from "react";
-import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import { TeamMenber, Team } from "@data/Data";
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { fetchTeam } from "@firebase/index";
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@firebase/index';
+import React, { useState, useEffect } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Modal,
+  Animated,
+} from "react-native";
+import { StyleSheet } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { db, fetchTeam } from "@firebase/index";
+import { TeamMenber } from "@data/Data";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { TextInputMask } from "react-native-masked-text";
 
-export default function TeamManagement() {
-    const [text, onChangeText] = useState("");
-    const [createMemberModal, setCreateMemberModal] = useState<boolean>(false);
-    const [editMemberModal, setEditMemberModal] = useState<boolean>(false);
-    const [team, setTeam] = useState<TeamMenber[]>(Team);
-    const [filteredTeam, setFilteredTeam] = useState<TeamMenber[]>(Team);
-    const [newMember, setNewMember] = useState<TeamMenber>({
-        id: "",
-        name: "",
-        email: "",
-        cpf: "",
-        phone: ""
+const TeamManagementPage = () => {
+  const [text, onChangeText] = useState("");
+  const [createMemberModal, setCreateMemberModal] = useState(false);
+  const [editMemberModal, setEditMemberModal] = useState(false);
+  const [filterModal, setFilterModal] = useState(false);
+  const [team, setTeam] = useState([]);
+  const [filteredTeam, setFilteredTeam] = useState([]);
+  const [newMember, setNewMember] = useState({
+    id: "",
+    name: "",
+    email: "",
+    cpf: "",
+    phone: "",
+  });
+  const [currentMember, setCurrentMember] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [ModalMessage, setModalMessage] = useState(null);
+  const [isOn, setIsOn] = useState(false);
+  const [loadingAnimation, setLoadingAnimation] = useState(false);
+  const [Visualmessage, setVisualMessage] = useState(false);
+  const [selectedFilterService, setSelectedFilterService] = useState(null);
+  const [selectedFilterTeamMember, setSelectedFilterTeamMember] = useState(null);
+
+  const [showLoading, setShowLoading] = useState(false);
+  const [hasResults, setHasResults] = useState(true);
+
+  const openCreateMemberModal = () => {
+    setNewMember({
+      id: "",
+      name: "",
+      email: "",
+      cpf: "",
+      phone: "",
     });
-    const [currentMember, setCurrentMember] = useState<TeamMenber | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [message, setMessage] = useState<string | null>(null);
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+    setCreateMemberModal(true);
+  };
+  const openEditMemberModal = (member) => {
+    setCurrentMember(member);
+    setEditMemberModal(true);
+  };
 
-    const addTeam = async (newMember: TeamMenber) => {
-        try {
-            setCreateMemberModal(false);
-            setLoading(true);
-            // Adiciona uma nova tarefa na coleção "demandas"
-            await addDoc(collection(db, 'funcionarios'), {
-                name: newMember.name,
-                email: newMember.email,
-                cpf: newMember.cpf,
-                phone: newMember.phone,
-            });
+  const addMember = async (newMember: TeamMenber) => {
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await addDoc(collection(db, "funcionarios"), {
+        name: newMember.name,
+        email: newMember.email,
+        cpf: newMember.cpf,
+        phone: newMember.phone,
+      });
+      await fetchTeam(setTeam);
+      setLoadingAnimation(false);
+      setModalMessage("Menbro adicionado com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      setLoadingAnimation(false);
+      console.error("Erro ao adicionar ao membro: ", error);
+      setModalMessage("Erro ao adicionar ao membro.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setCreateMemberModal(false);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+        setModalMessage("");
+      }, 1000);
+    }
+  };
+  const editMember = async () => {
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await updateDoc(doc(db, "funcionarios", currentMember.id), {
+        name: currentMember.name,
+        email: currentMember.email,
+        cpf: currentMember.cpf,
+        phone: currentMember.phone,
+      });
+      await fetchTeam(setTeam);
 
-            console.log("Tarefa adicionada com sucesso!");
-            fetchTeam(setTeam);
-            setFilteredTeam(team);
-        } catch (error) {
-            console.error("Erro ao adicionar a tarefa: ", error);
-        }
-        finally {
-            setLoading(false);
-        }
-    };
-    const deleteMenber = async (MenberId) => {
-        try {
-            // Referência ao documento que deseja excluir
-            const taskDocRef = doc(db, 'funcionarios', MenberId.toString()); // Converta MenberId para string se necessário
+      setLoadingAnimation(false);
+      setModalMessage("Membro editado com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      setLoadingAnimation(false);
+      console.error("Erro ao editar membro: ", error);
+      setModalMessage("Erro ao editar membro.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setEditMemberModal(false);
+        setCurrentMember(null);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+        setModalMessage("");
+      }, 1000);
+    }
+  };
+  const deleteMember = async (memberId: string) => {
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await deleteDoc(doc(db, "funcionarios", memberId));
+      await fetchTeam(setTeam);
 
-            setEditMemberModal(false);
-            setLoading(true);
+      setLoadingAnimation(false);
+      setModalMessage("Membro excluído com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      setLoadingAnimation(false);
+      console.error("Erro ao excluir membro: ", error);
+      setModalMessage("Erro ao excluir membro.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setEditMemberModal(false);
+        setCurrentMember(null);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+        setModalMessage("");
+      }, 1000);
+    }
+  };
 
-            // Exclui o documento
-            await deleteDoc(taskDocRef);
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => openEditMemberModal(item)}
+      style={styles.memberItem}
+    >
+      <Text>{item.name}</Text>
+    </TouchableOpacity>
+  );
 
-            // Atualiza a lista de tarefas, removendo a tarefa excluída
-            const updatedTeam = Team.filter(task => task.id !== MenberId);
-            setTeam(updatedTeam);
-            setFilteredTeam(updatedTeam); // Atualizar tarefas filtradas se necessário
+  const toggleOrder = () => {
+    setIsOn(!isOn);
+    setFilteredTeam(filteredTeam.reverse());
+  };
+  const clearFilters = () => {
+    setSelectedFilterService(null);
+    setSelectedFilterTeamMember(null);
+  };
+  const applyFilters = () => {
+    let filtered = [...team];
 
-            console.log(`Tarefa ${MenberId} excluída com sucesso.`);
-            showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
-            fetchTeam(setTeam);
+    if (selectedFilterService) {
+      filtered = filtered.filter(
+        (member) => member.serviceId === selectedFilterService
+      );
+    }
 
-            // Desativar loading após um delay, se necessário
-            setTimeout(() => {
-                setLoading(false);
-            }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+    if (selectedFilterTeamMember) {
+      filtered = filtered.filter(
+        (member) => member.id === selectedFilterTeamMember
+      );
+    }
 
-        } catch (error) {
-            console.error('Erro ao excluir tarefa: ', error);
-            setLoading(false); // Garantir que o loading seja desativado em caso de erro
-        }
-    };
-    const editMenber = async () => {
-        try {
-            if (currentMember) {
-                setEditMemberModal(false);
-                setLoading(true); // Ativar loading
+    setFilteredTeam(filtered);
+    setFilterModal(false); // Fecha o modal de filtros após aplicar
+  };
 
-                // Referência ao documento que deseja atualizar
-                const taskDocRef = doc(db, 'funcionarios', currentMember.id.toString()); // Converta currentMember.id para string se necessário
 
-                // Atualiza o documento no Firestore
-                await updateDoc(taskDocRef, {
-                    name: currentMember.name,
-                    email: currentMember.email,
-                    cpf: currentMember.cpf,
-                    phone: currentMember.phone,
-                });
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setShowLoading(false);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
 
-                // Atualiza a lista de tarefas localmente
-                const updatedTeam = Team.map((member) =>
-                    member.id === currentMember.id ? currentMember : member
-                );
-                fetchTeam(setTeam);
-                setFilteredTeam(updatedTeam); // Atualiza tarefas filtradas se necessário
+  useEffect(() => {
+    fetchTeam(setTeam);
+    setFilteredTeam(team);
+  }, []);
+  
+  useEffect(() => {
+    const filtered = team
+      .filter((member) =>
+        member.name.toLowerCase().includes(text.toLowerCase())
+      )
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
 
-                console.log(`Tarefa ${currentMember.id} editada com sucesso.`);
-                showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
+    setFilteredTeam(filtered);
+  }, [text, team]);
 
-                // Desativar loading após um delay, se necessário
-                setTimeout(() => {
-                    setLoading(false);
-                }, 500); // Manter o mesmo delay da função de edição
+  return (
+    <SafeAreaView style={styles.MainContainer}>
+      <View style={styles.HeaderContent} />
 
-            }
-        } catch (error) {
-            console.error('Erro ao editar tarefa: ', error);
-            setLoading(false); // Garantir que o loading seja desativado em caso de erro
-        }
-    };
-
-    useEffect(() => {
-        fetchTeam(setTeam);
-        setFilteredTeam(team);
-    }, []);
-    useEffect(() => {
-        const filtered = team
-            .filter((member) =>
-                member.name.toLowerCase().includes(text.toLowerCase())
-            )
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-
-        setFilteredTeam(filtered);
-    }, [text, team]);
-
-    const clearMessage = () => {
-        setTimeout(() => {
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 500,
-                useNativeDriver: true,
-            }).start(() => setMessage(null));
-        }, 3000);
-    };
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-        }).start();
-        clearMessage();
-    };
-
-    const renderItem = ({ item }: { item: TeamMenber }) => (
-        <TouchableOpacity
-            style={styles.memberItem}
-            onPress={() => {
-                setCurrentMember(item);
-                setEditMemberModal(true);
-            }}
+      <View style={styles.GenericContainer}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 10,
+            width: "100%",
+          }}
         >
-            <Text style={styles.memberTitle}>{item.name}</Text>
-            <Text>Email: {item.email}</Text>
-            <Text>CPF: {item.cpf}</Text>
-            <Text>Telefone: {item.phone}</Text>
-        </TouchableOpacity>
-    );
+          <TouchableOpacity onPress={toggleOrder} style={styles.FilterButton}>
+            <Text style={{ color: "#fff" }}>{isOn ? "Z-A" : "A-Z"}</Text>
+          </TouchableOpacity>
 
-    return (
-        <SafeAreaView style={styles.container}>
-
-            <View style={styles.header}>
-                <Text style={styles.headerText}>Equipe</Text>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <TextInput
-                    onChangeText={onChangeText}
-                    value={text}
-                    placeholder="Buscar membros da equipe..."
-                    style={styles.input}
-                />
-                <TouchableOpacity
-                    onPress={() => setCreateMemberModal(true)}
-                    style={styles.createButton}
-                >
-                    <Text style={styles.buttonText}>Adicionar Membro</Text>
-                </TouchableOpacity>
-            </View>
-
-            <FlatList
-                style={styles.flatList}
-                contentContainerStyle={styles.flatListContent}
-                data={filteredTeam}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
+          <View style={{ position: "relative", flex: 1 }}>
+            <TextInput
+              onChangeText={onChangeText}
+              value={text}
+              placeholder="Search team members..."
+              style={styles.input}
             />
+            <View style={styles.searchButton}>
+              <Feather name="search" size={20} />
+            </View>
+          </View>
+        </View>
 
-            {message && (
-                <Animated.View style={[styles.messageContainer, { opacity: fadeAnim }]}>
-                    <Text style={styles.messageText}>{message}</Text>
-                </Animated.View>
-            )}
+        <View style={styles.GenericContainer2}>
+          {filteredTeam.length === 0 ? (
+            showLoading ? (
+              <ActivityIndicator
+                style={styles.LoadAnimation}
+                size={100}
+                color="#6200ea"
+              />
+            ) : (
+              <View style={styles.MessageContent}>
+                <Text style={styles.MessageText}>
+                  {message || "Nenhum membro encontrado"}
+                </Text>
+              </View>
+            )
+          ) : !hasResults ? (
+            <View style={styles.MessageContent}>
+              <Text style={styles.MessageText}>
+                {message || "Nenhum membro encontrado"}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredTeam}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          )}
+        </View>
+      </View>
 
-            {loading && (
-                <Modal
-                    transparent={true}
-                    animationType="fade"
-                    visible={loading}
-                    onRequestClose={() => { }}
-                >
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#000" />
-                    </View>
-                </Modal>
-            )}
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={openCreateMemberModal}
+      >
+        <Text style={styles.CreateButtonText}>Criar novo membro</Text>
+      </TouchableOpacity>
 
-            <Modal
-                transparent={true}
-                animationType="fade"
-                visible={createMemberModal}
-                onRequestClose={() => setCreateMemberModal(false)}
+      {/* Modal para criar membro */}
+      <Modal
+        transparent
+        visible={createMemberModal}
+        animationType="slide"
+        onRequestClose={() => setCreateMemberModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              onPress={() => setCreateMemberModal(false)}
+              style={styles.closeButton}
             >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => setCreateMemberModal(false)}
-                    style={styles.modalBackground}
+              <Feather name="x" size={20} />
+            </TouchableOpacity>
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{ModalMessage}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Novo Membro</Text>
+                <View style={styles.GenericContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={newMember.name}
+                    onChangeText={(text) =>
+                      setNewMember({ ...newMember, name: text })
+                    }
+                    placeholder="Nome"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={newMember.email}
+                    onChangeText={(text) =>
+                      setNewMember({ ...newMember, email: text })
+                    }
+                    placeholder="Email"
+                  />
+                  <TextInputMask
+                    type={"custom"}
+                    options={{
+                      mask: "999.999.999-99",
+                    }}
+                    style={styles.input}
+                    value={newMember.cpf}
+                    onChangeText={(text) =>
+                      setNewMember({ ...newMember, cpf: text })
+                    }
+                    placeholder="CPF"
+                  />
+                  <TextInputMask
+                    type={"custom"}
+                    options={{
+                      mask: "(99) 99999-9999",
+                    }}
+                    style={styles.input}
+                    value={newMember.phone}
+                    onChangeText={(text) =>
+                      setNewMember({ ...newMember, phone: text })
+                    }
+                    placeholder="Telefone"
+                  />
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
                 >
-                    <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-                        <Text style={styles.modalTitle}>Adicionar Membro</Text>
-                        <TextInput
-                            placeholder="Nome"
-                            onChangeText={(text) => setNewMember({ ...newMember, name: text })}
-                            value={newMember.name}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <TextInput
-                            placeholder="Email"
-                            onChangeText={(text) => setNewMember({ ...newMember, email: text })}
-                            value={newMember.email}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <TextInput
-                            placeholder="CPF"
-                            onChangeText={(text) => setNewMember({ ...newMember, cpf: text })}
-                            value={newMember.cpf}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <TextInput
-                            placeholder="Telefone"
-                            onChangeText={(text) => setNewMember({ ...newMember, phone: text })}
-                            value={newMember.phone}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={styles.modalActionButton}
-                                onPress={() => addTeam(newMember)}
-                                disabled={loading}
-                            >
-                                <Text style={styles.modalActionButtonText}>Adicionar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => setCreateMemberModal(false)}
-                            >
-                                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => {
+                      addMember(newMember);
+                    }}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
-            <Modal
-                transparent={true}
-                animationType="fade"
-                visible={editMemberModal}
-                onRequestClose={() => !loading && setEditMemberModal(false)}
+      {/* Modal para editar membro */}
+      <Modal
+        transparent
+        visible={editMemberModal}
+        animationType="slide"
+        onRequestClose={() => setEditMemberModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              onPress={() => setEditMemberModal(false)}
+              style={styles.closeButton}
             >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => !loading && setEditMemberModal(false)}
-                    style={styles.modalBackground}
+              <Feather name="x" size={20} />
+            </TouchableOpacity>
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{ModalMessage}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Editar Membro</Text>
+                <View style={styles.GenericContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={currentMember?.name}
+                    onChangeText={(text) =>
+                      setCurrentMember((prev) => ({ ...prev, name: text }))
+                    }
+                    placeholder="Nome"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={currentMember?.email}
+                    onChangeText={(text) =>
+                      setCurrentMember((prev) => ({ ...prev, email: text }))
+                    }
+                    placeholder="Email"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={currentMember?.cpf}
+                    onChangeText={(text) =>
+                      setCurrentMember((prev) => ({ ...prev, cpf: text }))
+                    }
+                    placeholder="CPF"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={currentMember?.phone}
+                    onChangeText={(text) =>
+                      setCurrentMember((prev) => ({ ...prev, phone: text }))
+                    }
+                    placeholder="Telefone"
+                  />
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
                 >
-                    <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Editar Membro</Text>
-                            <TouchableOpacity
-                                style={styles.modalCloseButton}
-                                onPress={() => !loading && setEditMemberModal(false)}
-                            >
-                                <Icon name="close" size={24} color="#000" />
-                            </TouchableOpacity>
-                        </View>
-                        {currentMember && (
-                            <>
-                                <TextInput
-                                    placeholder="Nome"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, name: text })}
-                                    value={currentMember.name}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <TextInput
-                                    placeholder="Email"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, email: text })}
-                                    value={currentMember.email}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <TextInput
-                                    placeholder="CPF"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, cpf: text })}
-                                    value={currentMember.cpf}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <TextInput
-                                    placeholder="Telefone"
-                                    onChangeText={(text) => setCurrentMember({ ...currentMember, phone: text })}
-                                    value={currentMember.phone}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <View style={styles.modalButtons}>
-                                    <TouchableOpacity
-                                        style={styles.modalActionButton}
-                                        onPress={editMenber}
-                                        disabled={loading}
-                                    >
-                                        <Text style={styles.modalActionButtonText}>Salvar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.modalCancelButton}
-                                        onPress={() => currentMember && deleteMenber(currentMember.id)}
-                                        disabled={loading}
-                                    >
-                                        <Text style={styles.modalCancelButtonText}>Excluir</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        )}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => {
+                      editMember();
+                    }}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar alterações</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.DeleteButton, { backgroundColor: "red" }]}
+                    onPress={() => {
+                      deleteMember(currentMember.id);
+                    }}
+                  >
+                    <Text style={styles.DeleteButtonText}>Excluir Membro</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
-        </SafeAreaView>
-    );
-}
+    </SafeAreaView>
+  );
+};
+export default TeamManagementPage;
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    header: {
-        height: 80,
-        justifyContent: "flex-end",
-        alignItems: "center",
-        paddingVertical: 10,
-        backgroundColor: '#6200ea',
-    },
-    headerText: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    searchContainer: {
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        height: "auto",
-    },
-    input: {
-        width: '100%',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        fontSize: 16,
-        marginBottom: 10,
-        height: 40,
-    },
-    createButton: {
-        width: '100%',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        backgroundColor: '#6200ea',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: 40,
-    },
-    buttonText: {
-        fontSize: 16,
-        color: '#fff',
-    },
-    flatList: {
-        flex: 1,
-    },
-    flatListContent: {
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-    },
-    memberItem: {
-        backgroundColor: '#fff',
-        padding: 15,
-        marginBottom: 10,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    memberTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
-    modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalContainer: {
-        backgroundColor: '#fff',
-        marginHorizontal: 20,
-        borderRadius: 8,
-        padding: 20,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    modalCloseButton: {
-        padding: 5,
-    },
-    modalInput: {
-        borderBottomWidth: 1,
-        borderColor: '#ccc',
-        paddingVertical: 8,
-        marginBottom: 20,
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    modalActionButton: {
-        backgroundColor: '#6200ea',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    modalActionButtonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    modalCancelButton: {
-        backgroundColor: '#f44336',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    modalCancelButtonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    messageContainer: {
-        position: 'absolute',
-        bottom: 10,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 15,
-        backgroundColor: '#6200ea',
-        borderRadius: 8,
-        marginHorizontal: 20,
-    },
-    messageText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
+  MainContainer: {
+    flex: 1,
+    flexDirection: "column",
+    backgroundColor: "#eeeeee",
+    position: "relative",
+  },
+  GenericContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    padding: 10,
+    gap: 10,
+  },
+  GenericContainer2: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  HeaderContent: {
+    height: 38,
+    backgroundColor: "#fff",
+  },
+  createButton: {
+    bottom: 10,
+    right: 10,
+    position: "absolute",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: "#6200ea",
+    height: 40,
+    zIndex: 999,
+  },
+  CreateButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  FilterButton: {
+    height: 40,
+    width: 40,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 5,
+    borderRadius: 8,
+    backgroundColor: "#6200ea",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    width: "100%",
+    backgroundColor: "#d3d3d375",
+  },
+  modalContent: {
+    position: "relative",
+    width: "100%",
+    minHeight: 400,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: "#6200ea",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  SaveButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  DeleteButton: {
+    flex: 1,
+    backgroundColor: "red",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  DeleteButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  memberItem: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  picker: {
+    height: 50,
+    marginVertical: 10,
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 16,
+    marginBottom: 10,
+    height: 40,
+    backgroundColor: "#fff",
+  },
+  LoadAnimation: {
+    margin: "auto",
+  },
+  MessageContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  MessageText: {
+    fontSize: 20,
+    fontWeight: "600",
+    textAlign: "center",
+    width: 250,
+  },
+  closeButton: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    padding: 5,
+    zIndex: 9999,
+  },
+  searchButton: {
+    position: "absolute",
+    right: 12,
+    top: 5,
+    padding: 5,
+    zIndex: 9999,
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleButton: {
+    width: 100,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 25,
+  },
+  on: {
+    backgroundColor: "#4caf50",
+  },
+  off: {
+    backgroundColor: "#f44336",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
