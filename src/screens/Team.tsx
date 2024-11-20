@@ -165,28 +165,6 @@ const TeamManagementPage = () => {
     setIsOn(!isOn);
     setFilteredTeam(filteredTeam.reverse());
   };
-  const clearFilters = () => {
-    setSelectedFilterService(null);
-    setSelectedFilterTeamMember(null);
-  };
-  const applyFilters = () => {
-    let filtered = [...team];
-
-    if (selectedFilterService) {
-      filtered = filtered.filter(
-        (member) => member.serviceId === selectedFilterService
-      );
-    }
-
-    if (selectedFilterTeamMember) {
-      filtered = filtered.filter(
-        (member) => member.id === selectedFilterTeamMember
-      );
-    }
-
-    setFilteredTeam(filtered);
-    setFilterModal(false); // Fecha o modal de filtros após aplicar
-  };
 
 
   useEffect(() => {
@@ -200,18 +178,21 @@ const TeamManagementPage = () => {
     fetchTeam(setTeam);
     setFilteredTeam(team);
   }, []);
-  
+
   useEffect(() => {
     const filtered = team
       .filter((member) =>
-        member.name.toLowerCase().includes(text.toLowerCase())
+        member.name.toLowerCase().startsWith(text.toLowerCase())
       )
       .sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { numeric: true })
       );
-
+  
     setFilteredTeam(filtered);
+    setHasResults(filtered.length > 0); // Define se há resultados
   }, [text, team]);
+  
+  
 
   return (
     <SafeAreaView style={styles.MainContainer}>

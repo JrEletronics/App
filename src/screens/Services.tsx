@@ -1,486 +1,614 @@
-import { useState, useEffect, useRef } from "react";
-import { FlatList, Text, TextInput, View, SafeAreaView, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import React, { useState, useEffect } from "react";
+import {
+  FlatList,
+  Text,
+  TextInput,
+  View,
+  SafeAreaView,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { Service, ServicesList } from "@data/Data";
 import { fetchservices } from "@firebase/index";
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@firebase/index';
+import {
+  collection,
+  addDoc,
+  doc,
+  deleteDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@firebase/index";
 
 export default function Services() {
-    const [text, onChangeText] = useState("");
-    const [createServiceModal, setCreateServiceModal] = useState<boolean>(false);
-    const [editServiceModal, setEditServiceModal] = useState<boolean>(false);
-    const [services, setServices] = useState<Service[]>([]);
-    const [filteredServices, setFilteredServices] = useState<Service[]>([]);
-    const [newService, setNewService] = useState<Service>({
-        id: "",
-        name: "",
-        desc: "",
+  const [text, onChangeText] = useState("");
+  const [createServiceModal, setCreateServiceModal] = useState<boolean>(false);
+  const [editServiceModal, setEditServiceModal] = useState<boolean>(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
+  const [newService, setNewService] = useState<Service>({
+    id: "",
+    name: "",
+    desc: "",
+  });
+  const [currentService, setCurrentService] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [ModalMessage, setModalMessage] = useState(null);
+  const [isOn, setIsOn] = useState(false);
+  const [loadingAnimation, setLoadingAnimation] = useState(false);
+  const [Visualmessage, setVisualMessage] = useState(false);
+
+  const [showLoading, setShowLoading] = useState(false);
+  const [hasResults, setHasResults] = useState(true);
+  const [descMaxLength] = useState(200);
+
+  const openCreateServiceModal = () => {
+    setNewService({
+      id: "",
+      name: "",
+      desc: "",
     });
-    const [currentService, setCurrentService] = useState<Service | null>(null);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [message, setMessage] = useState<string | null>(null);
-    const [descMaxLength] = useState(200);
+    setCreateServiceModal(true);
+  };
+  const openEditServiceModal = (service) => {
+    setCurrentService(service);
+    setEditServiceModal(true);
+  };
 
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+  const addService = async (newService: Service) => {
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await addDoc(collection(db, "servicos"), {
+        name: newService.name,
+        desc: newService.desc,
+      });
+      await fetchservices(setServices);
+      setLoadingAnimation(false);
+      setModalMessage("Serviço adicionado com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      setLoadingAnimation(false);
+      console.error("Erro ao adicionar serviço: ", error);
+      setModalMessage("Erro ao adicionar serviço.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        setCreateServiceModal(false);
+        setLoading(false);
+        setLoadingAnimation(false);
+        setVisualMessage(false);
+        setModalMessage("");
+      }, 1000);
+    }
+  };
+  const COLLECTION_NAME = "servicos";
+  const editService = async () => {
+    if (!currentService?.id) {
+      console.error("Erro: Serviço inválido ou não selecionado.");
+      setModalMessage("Erro ao editar Serviço.");
+      setVisualMessage(true);
+      return;
+    }
 
-    const addService = async (newService: Service) => {
-        try {
-            setCreateServiceModal(false);
-            setLoading(true);
-            // Adiciona uma nova tarefa na coleção "demandas"
-            await addDoc(collection(db, 'servicos'), {
-                name: newService.name,
-                desc: newService.desc,
-            });
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await updateDoc(doc(db, COLLECTION_NAME, currentService.id), {
+        name: currentService.name,
+        email: currentService.email || "",
+        cpf: currentService.cpf || "",
+        phone: currentService.phone || "",
+      });
+      await fetchservices(setServices);
 
-            console.log("Tarefa adicionada com sucesso!");
-            fetchservices(setServices);
-            setFilteredServices(ServicesList);
-        } catch (error) {
-            console.error("Erro ao adicionar a tarefa: ", error);
-        }
-        finally {
-            setLoading(false);
-        }
-    };
-    const deleteService = async (ServiceId) => {
-        try {
-            // Referência ao documento que deseja excluir
-            const taskDocRef = doc(db, 'servicos', ServiceId.toString()); // Converta ServiceId para string se necessário
+      setLoadingAnimation(false);
+      setModalMessage("Serviço editado com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      console.error("Erro ao editar Serviço:", error);
+      setModalMessage("Erro ao editar Serviço.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        resetModalState();
+      }, 1000);
+    }
+  };
+  const deleteService = async (serviceId: string) => {
+    if (!serviceId) {
+      console.error("Erro: ID do serviço não fornecido.");
+      setModalMessage("Erro ao excluir Serviço.");
+      setVisualMessage(true);
+      return;
+    }
 
-            setEditServiceModal(false);
-            setLoading(true);
+    try {
+      setLoading(true);
+      setLoadingAnimation(true);
+      await deleteDoc(doc(db, COLLECTION_NAME, serviceId));
+      await fetchservices(setServices);
 
-            // Exclui o documento
-            await deleteDoc(taskDocRef);
+      setLoadingAnimation(false);
+      setModalMessage("Serviço excluído com sucesso!");
+      setVisualMessage(true);
+    } catch (error) {
+      console.error("Erro ao excluir Serviço:", error);
+      setModalMessage("Erro ao excluir Serviço.");
+      setVisualMessage(true);
+    } finally {
+      setTimeout(() => {
+        resetModalState();
+      }, 1000);
+    }
+  };
 
-            // Atualiza a lista de tarefas, removendo a tarefa excluída
-            const updatedServices = ServicesList.filter(Service => Service.id !== ServiceId);
-            setServices(updatedServices);
-            setFilteredServices(updatedServices); // Atualizar tarefas filtradas se necessário
+  const resetModalState = () => {
+    setEditServiceModal(false);
+    setCurrentService(null);
+    setLoading(false);
+    setLoadingAnimation(false);
+    setVisualMessage(false);
+    setModalMessage("");
+  };
 
-            console.log(`Tarefa ${ServiceId} excluída com sucesso.`);
-            showMessage("Tarefa excluída com sucesso!"); // Exibir mensagem de sucesso
-            fetchservices(setServices);
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => openEditServiceModal(item)}
+      style={styles.memberItem}
+    >
+      <Text>{item.name}</Text>
+    </TouchableOpacity>
+  );
 
-            // Desativar loading após um delay, se necessário
-            setTimeout(() => {
-                setLoading(false);
-            }, 500); // Manter o mesmo delay da função de edição, ajuste conforme necessário
+  const toggleOrder = () => {
+    setIsOn(!isOn);
+    setFilteredServices(filteredServices.reverse());
+  };
 
-        } catch (error) {
-            console.error('Erro ao excluir tarefa: ', error);
-            setLoading(false); // Garantir que o loading seja desativado em caso de erro
-        }
-    };
-    const editService = async () => {
-        try {
-            if (currentService) {
-                setEditServiceModal(false);
-                setLoading(true);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setShowLoading(false);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
 
-                // Referência ao documento que deseja atualizar
-                const taskDocRef = doc(db, 'servicos', currentService.id.toString()); // Converta currentService.id para string se necessário
+  useEffect(() => {
+    fetchservices(setServices);
+    setFilteredServices([]);
+  }, []);
 
-                // Atualiza o documento no Firestore
-                await updateDoc(taskDocRef, {
-                    name: currentService.name,
-                    desc: currentService.desc,
-                });
+  useEffect(() => {
+    const filtered = services
+      .filter((service) =>
+        service.name.toLowerCase().startsWith(text.toLowerCase())
+      )
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
 
-                // Atualiza a lista de tarefas localmente
-                const updatedServices = ServicesList.map((service) =>
-                    service.id === currentService.id ? currentService : service
-                );
-                setServices(updatedServices);
-                setFilteredServices(updatedServices); // Atualiza tarefas filtradas se necessário
+    setFilteredServices(filtered);
+    setHasResults(filtered.length > 0);
+  }, [text, services]);
 
-                console.log(`Tarefa ${currentService.id} editada com sucesso.`);
-                showMessage("Tarefa editada com sucesso!"); // Exibir mensagem de sucesso
-                fetchservices(setServices);
-                // Desativar loading após um delay, se necessário
-                setTimeout(() => {
-                    setLoading(false);
-                }, 500); // Manter o mesmo delay da função de edição
+  return (
+    <SafeAreaView style={styles.MainContainer}>
+      <View style={styles.HeaderContent} />
 
-            }
-        } catch (error) {
-            console.error('Erro ao editar tarefa: ', error);
-            setLoading(false); // Garantir que o loading seja desativado em caso de erro
-        }
-    };
-
-    useEffect(() => {
-        fetchservices(setServices);
-        setFilteredServices(ServicesList);
-    }, []);
-    useEffect(() => {
-        const filtered = services
-            .filter((service) => service.name.toLowerCase().includes(text.toLowerCase()))
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-
-        setFilteredServices(filtered);
-    }, [text, services]);
-
-    const clearMessage = () => {
-        setTimeout(() => {
-            Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 500,
-                useNativeDriver: true,
-            }).start(() => setMessage(null));
-        }, 3000);
-    };
-    const showMessage = (msg: string) => {
-        setMessage(msg);
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-        }).start();
-        clearMessage();
-    };
-
-    const renderItem = ({ item }: { item: Service }) => (
-        <TouchableOpacity
-            style={styles.serviceItem}
-            onPress={() => {
-                setCurrentService(item);
-                setEditServiceModal(true);
-            }}
+      <View style={styles.GenericContainer}>
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 10,
+            width: "100%",
+          }}
         >
-            <Text style={styles.serviceTitle}>{item.name}</Text>
-            <Text>{item.desc}</Text>
-        </TouchableOpacity>
-    );
+          <TouchableOpacity onPress={toggleOrder} style={styles.FilterButton}>
+            <Text style={{ color: "#fff" }}>{isOn ? "Z-A" : "A-Z"}</Text>
+          </TouchableOpacity>
 
-    return (
-        <SafeAreaView style={styles.container}>
-
-            <View style={styles.header}>
-                <Text style={styles.headerText}>Cadastro de Serviços</Text>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <TextInput
-                    onChangeText={onChangeText}
-                    value={text}
-                    placeholder="Buscar serviços..."
-                    style={styles.input}
-                />
-                <TouchableOpacity
-                    onPress={() => setCreateServiceModal(true)}
-                    style={styles.createButton}
-                >
-                    <Text style={styles.buttonText}>Criar Novo Serviço</Text>
-                </TouchableOpacity>
-            </View>
-
-            <FlatList
-                style={styles.flatList}
-                contentContainerStyle={styles.flatListContent}
-                data={filteredServices}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
+          <View style={{ position: "relative", flex: 1 }}>
+            <TextInput
+              onChangeText={onChangeText}
+              value={text}
+              placeholder="Search team members..."
+              style={styles.input}
             />
+            <View style={styles.searchButton}>
+              <Feather name="search" size={20} />
+            </View>
+          </View>
+        </View>
 
-            {message && (
-                <Animated.View style={[styles.messageContainer, { opacity: fadeAnim }]}>
-                    <Text style={styles.messageText}>{message}</Text>
-                </Animated.View>
-            )}
+        <View style={styles.GenericContainer2}>
+          {services.length === 0 ? (
+            showLoading ? (
+              <ActivityIndicator
+                style={styles.LoadAnimation}
+                size={100}
+                color="#6200ea"
+              />
+            ) : (
+              <View style={styles.MessageContent}>
+                <Text style={styles.MessageText}>
+                  {message || "Nenhum serviço encontrado"}
+                </Text>
+              </View>
+            )
+          ) : !hasResults ? (
+            <View style={styles.MessageContent}>
+              <Text style={styles.MessageText}>
+                {message || "Nenhum serviço encontrado"}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredServices}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id.toString()}
+            />
+          )}
+        </View>
+      </View>
 
-            {loading && (
-                <Modal
-                    transparent={true}
-                    animationType="fade"
-                    visible={loading}
-                    onRequestClose={() => { }}
-                >
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#000" />
-                    </View>
-                </Modal>
-            )}
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={openCreateServiceModal}
+      >
+        <Text style={styles.CreateButtonText}>Criar novo serviço</Text>
+      </TouchableOpacity>
 
-            <Modal
-                transparent={true}
-                animationType="fade"
-                visible={createServiceModal}
-                onRequestClose={() => setCreateServiceModal(false)}
+      {/* Modal para criar membro */}
+      <Modal
+        transparent
+        visible={createServiceModal}
+        animationType="slide"
+        onRequestClose={() => setCreateServiceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              onPress={() => setCreateServiceModal(false)}
+              style={styles.closeButton}
             >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => setCreateServiceModal(false)}
-                    style={styles.modalBackground}
+              <Feather name="x" size={20} />
+            </TouchableOpacity>
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{ModalMessage}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Novo Serviço</Text>
+                <View style={styles.GenericContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={newService.name}
+                    onChangeText={(text) =>
+                      setNewService({ ...newService, name: text })
+                    }
+                    placeholder="Nome"
+                  />
+                  <TextInput
+                    style={[styles.input, styles.descInput]}
+                    value={newService?.desc || ""}
+                    onChangeText={(text) =>
+                      setNewService({ ...newService, desc: text })
+                    }
+                    placeholder="Descrição do serviço"
+                    multiline={true}
+                  />
+                  <Text style={styles.charCount}>
+                    {newService?.desc?.length || 0}/{descMaxLength} caracteres
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
                 >
-                    <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-                        <Text style={styles.modalTitle}>Criar Novo Serviço</Text>
-                        <TextInput
-                            placeholder="Nome do Serviço"
-                            onChangeText={(text) => setNewService({ ...newService, name: text })}
-                            value={newService.name}
-                            style={styles.modalInput}
-                            editable={!loading}
-                        />
-                        <TextInput
-                            placeholder="Descrição"
-                            onChangeText={(text) => {
-                                if (text.length <= descMaxLength) {
-                                    setNewService({ ...newService, desc: text });
-                                }
-                            }}
-                            value={newService.desc}
-                            style={[styles.modalInput, styles.descInput]}
-                            editable={!loading}
-                            multiline={true}
-                        />
-                        <Text style={styles.charCount}>
-                            {newService.desc.length}/{descMaxLength} caracteres
-                        </Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={styles.modalActionButton}
-                                onPress={() => addService(newService)}
-                                disabled={loading}
-                            >
-                                <Text style={styles.modalActionButtonText}>Criar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => setCreateServiceModal(false)}
-                            >
-                                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => {
+                      addService(newService);
+                    }}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
-            <Modal
-                transparent={true}
-                animationType="fade"
-                visible={editServiceModal}
-                onRequestClose={() => !loading && setEditServiceModal(false)}
+      {/* Modal para editar membro */}
+      <Modal
+        transparent
+        visible={editServiceModal}
+        animationType="slide"
+        onRequestClose={() => setEditServiceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              onPress={() => setEditServiceModal(false)}
+              style={styles.closeButton}
             >
-                <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={() => !loading && setEditServiceModal(false)}
-                    style={styles.modalBackground}
+              <Feather name="x" size={20} />
+            </TouchableOpacity>
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
+                  />
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{ModalMessage}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Novo Serviço</Text>
+                <View style={styles.GenericContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={currentService?.name}
+                    onChangeText={(text) =>
+                      setCurrentService((prev) => ({ ...prev, name: text }))
+                    }
+                    placeholder="Nome"
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={currentService?.desc}
+                    onChangeText={(text) =>
+                      setCurrentService((prev) => ({ ...prev, desc: text }))
+                    }
+                    placeholder="Descrição do serviço"
+                  />
+                </View>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
                 >
-                    <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Editar Serviço</Text>
-                            <TouchableOpacity
-                                style={styles.modalCloseButton}
-                                onPress={() => !loading && setEditServiceModal(false)}
-                            >
-                                <Icon name="close" size={24} color="#000" />
-                            </TouchableOpacity>
-                        </View>
-                        {currentService && (
-                            <>
-                                <TextInput
-                                    placeholder="Nome do Serviço"
-                                    onChangeText={(text) => setCurrentService({ ...currentService, name: text })}
-                                    value={currentService.name}
-                                    style={styles.modalInput}
-                                    editable={!loading}
-                                />
-                                <TextInput
-                                    placeholder="Descrição"
-                                    onChangeText={(text) => {
-                                        if (text.length <= descMaxLength) {
-                                            setCurrentService({ ...currentService, desc: text });
-                                        }
-                                    }}
-                                    value={currentService.desc}
-                                    style={[styles.modalInput, styles.descInput]}
-                                    editable={!loading}
-                                    multiline={true}
-                                />
-                                <Text style={styles.charCount}>
-                                    {currentService.desc.length}/{descMaxLength} caracteres
-                                </Text>
-                                <View style={styles.modalButtons}>
-                                    <TouchableOpacity
-                                        style={styles.modalActionButton}
-                                        onPress={editService}
-                                        disabled={loading}
-                                    >
-                                        <Text style={styles.modalActionButtonText}>Salvar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.modalCancelButton}
-                                        onPress={() => currentService && deleteService(currentService.id)}
-                                        disabled={loading}
-                                    >
-                                        <Text style={styles.modalCancelButtonText}>Excluir</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        )}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
-
-        </SafeAreaView>
-    );
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => {
+                      editService();
+                    }}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar alterações</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.DeleteButton, { backgroundColor: "red" }]}
+                    onPress={() => {
+                      deleteService(currentService.id);
+                    }}
+                  >
+                    <Text style={styles.DeleteButtonText}>Excluir Serviço</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    header: {
-        height: 80,
-        justifyContent: "flex-end",
-        alignItems: "center",
-        paddingVertical: 10,
-        backgroundColor: '#6200ea',
-    },
-    headerText: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    searchContainer: {
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        height: "auto",
-    },
-    input: {
-        width: '100%',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        fontSize: 16,
-        marginBottom: 10,
-        height: 40,
-    },
-    createButton: {
-        width: '100%',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        backgroundColor: '#6200ea',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: 40,
-    },
-    buttonText: {
-        fontSize: 16,
-        color: '#fff',
-    },
-    flatList: {
-        flex: 1,
-    },
-    flatListContent: {
-        paddingHorizontal: 20,
-        paddingVertical: 20,
-    },
-    serviceItem: {
-        backgroundColor: '#fff',
-        padding: 15,
-        marginBottom: 10,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    serviceTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
-    modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalContainer: {
-        backgroundColor: '#fff',
-        marginHorizontal: 20,
-        borderRadius: 8,
-        padding: 20,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    modalCloseButton: {
-        padding: 5,
-    },
-    modalInput: {
-        borderBottomWidth: 1,
-        borderColor: '#ccc',
-        paddingVertical: 8,
-        marginBottom: 20,
-    },
-    descInput: {
-        height: 80,
-        textAlignVertical: 'top',
-    },
-    charCount: {
-        textAlign: 'right',
-        color: '#999',
-        marginBottom: 10,
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    modalActionButton: {
-        backgroundColor: '#6200ea',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    modalActionButtonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    modalCancelButton: {
-        backgroundColor: '#f44336',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-    },
-    modalCancelButtonText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    messageContainer: {
-        position: 'absolute',
-        bottom: 10,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 15,
-        backgroundColor: '#6200ea',
-        borderRadius: 8,
-        marginHorizontal: 20,
-    },
-    messageText: {
-        color: '#fff',
-        fontSize: 16,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
+  MainContainer: {
+    flex: 1,
+    flexDirection: "column",
+    backgroundColor: "#eeeeee",
+    position: "relative",
+  },
+  GenericContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    padding: 10,
+    gap: 10,
+  },
+  GenericContainer2: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  HeaderContent: {
+    height: 38,
+    backgroundColor: "#fff",
+  },
+  createButton: {
+    bottom: 10,
+    right: 10,
+    position: "absolute",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: "#6200ea",
+    height: 40,
+    zIndex: 999,
+  },
+  CreateButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  FilterButton: {
+    height: 40,
+    width: 40,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 5,
+    borderRadius: 8,
+    backgroundColor: "#6200ea",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    width: "100%",
+    backgroundColor: "#d3d3d375",
+  },
+  modalContent: {
+    position: "relative",
+    width: "100%",
+    minHeight: 400,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: "#6200ea",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  SaveButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  DeleteButton: {
+    flex: 1,
+    backgroundColor: "red",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  DeleteButtonText: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  memberItem: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  taskTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  picker: {
+    height: 50,
+    marginVertical: 10,
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    fontSize: 16,
+    marginBottom: 10,
+    height: 40,
+    backgroundColor: "#fff",
+  },
+  descInput: {
+    flex: 1,
+    textAlignVertical: "top",
+  },
+  charCount: {
+    textAlign: "right",
+    color: "#999",
+    marginBottom: 10,
+  },
+  LoadAnimation: {
+    margin: "auto",
+  },
+  MessageContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  MessageText: {
+    fontSize: 20,
+    fontWeight: "600",
+    textAlign: "center",
+    width: 250,
+  },
+  closeButton: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+    padding: 5,
+    zIndex: 9999,
+  },
+  searchButton: {
+    position: "absolute",
+    right: 12,
+    top: 5,
+    padding: 5,
+    zIndex: 9999,
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleButton: {
+    width: 100,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 25,
+  },
+  on: {
+    backgroundColor: "#4caf50",
+  },
+  off: {
+    backgroundColor: "#f44336",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

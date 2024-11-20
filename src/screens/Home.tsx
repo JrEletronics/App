@@ -240,6 +240,7 @@ export default function Home() {
   );
 
   const [hasResults, setHasResults] = useState(true);
+  
   useEffect(() => {
     const filtered = tasks
       .filter((task) => {
