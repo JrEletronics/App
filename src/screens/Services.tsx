@@ -9,7 +9,6 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
-  Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Service, ServicesList } from "@data/Data";
@@ -158,11 +157,15 @@ export default function Services() {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      onPress={() => openEditServiceModal(item)}
-      style={styles.memberItem}
+      style={styles.serviceCard}
+      onPress={() => openEditServiceModal(item)} // Função de edição ou qualquer ação desejada
     >
-      <Text>{item.name}</Text>
+      <Text style={styles.serviceTitle}>{item.name}</Text>
+      <Text style={styles.serviceDescription}>
+        {item.desc || "Sem descrição disponível."}
+      </Text>
     </TouchableOpacity>
+
   );
 
   const toggleOrder = () => {
@@ -610,5 +613,25 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  serviceCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  serviceDescription: {
+    fontSize: 14,
+    color: "#666",
   },
 });

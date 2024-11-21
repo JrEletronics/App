@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
 import {
   FlatList,
@@ -103,7 +103,7 @@ export default function Home() {
       setLoadingAnimation(false);
       setMessage("Tarefa adicionada com sucesso!");
       setVisualMessage(true);
-    } catch (error) { 
+    } catch (error) {
       setLoadingAnimation(false);
       console.error("Erro ao adicionar a tarefa: ", error);
       setMessage("Erro ao adicionar a tarefa.");
@@ -227,20 +227,24 @@ export default function Home() {
   };
   const renderItem = ({ item }: { item: Task }) => (
     <TouchableOpacity
-      style={styles.taskItem}
+      style={styles.taskCard}
       onPress={() => openEditTaskModal(item)}
     >
       <Text style={styles.taskTitle}>{item.name}</Text>
-      <Text>{item.desc}</Text>
-      <Text>Início: {item.initDate}</Text>
-      <Text>Fim: {item.endDate}</Text>
-      <Text>Serviço: {item.service?.name || "N/A"}</Text>
-      <Text>Membro: {item.teammenber?.name || "N/A"}</Text>
+      <Text style={styles.taskDescription}>{item.desc}</Text>
+      <View style={styles.separator} />
+      <View style={styles.cardDetails}>
+        <Text>Início: {item.initDate}</Text>
+        <Text>Fim: {item.endDate}</Text>
+        <Text>Serviço: {item.service?.name || "N/A"}</Text>
+        <Text>Membro: {item.teammenber?.name || "N/A"}</Text>
+      </View>
     </TouchableOpacity>
+
   );
 
   const [hasResults, setHasResults] = useState(true);
-  
+
   useEffect(() => {
     const filtered = tasks
       .filter((task) => {
@@ -449,113 +453,113 @@ export default function Home() {
             >
               <Feather name="x" size={20} />
             </TouchableOpacity>
-              {loading ? (
-                <>
-                  {loadingAnimation && (
-                    <ActivityIndicator
-                      style={styles.LoadAnimation}
-                      size={100}
-                      color="#6200ea"
-                    />
-                  )}
-                  {Visualmessage && (
-                    <View style={styles.MessageContent}>
-                      <Text style={styles.MessageText}>{message}</Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Text style={styles.modalTitle}>Nova Tarefa</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newTask.name}
-                    onChangeText={(text) =>
-                      setNewTask({ ...newTask, name: text })
-                    }
-                    placeholder="Task Name"
+            {loading ? (
+              <>
+                {loadingAnimation && (
+                  <ActivityIndicator
+                    style={styles.LoadAnimation}
+                    size={100}
+                    color="#6200ea"
                   />
-                  <TextInput
-                    style={styles.input}
-                    value={newTask.desc}
-                    onChangeText={(text) =>
-                      setNewTask({ ...newTask, desc: text })
-                    }
-                    placeholder="Description"
-                    maxLength={descMaxLength}
-                  />
-                  <TextInputMask
-                    type={"datetime"}
-                    options={{
-                      format: "DD/MM/YYYY",
-                    }}
-                    value={newTask.initDate}
-                    onChangeText={(formatted) =>
-                      setNewTask({ ...newTask, initDate: formatted })
-                    }
-                    placeholder="Start Date"
-                    style={styles.input}
-                  />
-                  <TextInputMask
-                    type={"datetime"}
-                    options={{
-                      format: "DD/MM/YYYY",
-                    }}
-                    value={newTask.endDate}
-                    onChangeText={(formatted) =>
-                      setNewTask({ ...newTask, endDate: formatted })
-                    }
-                    placeholder="End Date"
-                    style={styles.input}
-                  />
-                  <Picker
-                    selectedValue={selectedService}
-                    onValueChange={setSelectedService}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Selececione um serviço" value={null} />
-                    {services.map((service) => (
-                      <Picker.Item
-                        key={service.id}
-                        label={service.name}
-                        value={service.id}
-                      />
-                    ))}
-                  </Picker>
-                  <Picker
-                    selectedValue={selectedTeamMember}
-                    onValueChange={setSelectedTeamMember}
-                    style={styles.picker}
-                  >
-                    <Picker.Item
-                      label="Selececione um Funcionario"
-                      value={null}
-                    />
-                    {team.map((member) => (
-                      <Picker.Item
-                        key={member.id}
-                        label={member.name}
-                        value={member.id}
-                      />
-                    ))}
-                  </Picker>
-                  <View
-                    style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      gap: 10,
-                      width: "100%",
-                    }}
-                  >
-                    <TouchableOpacity
-                      style={styles.saveButton}
-                      onPress={() => addTask(newTask)}
-                    >
-                      <Text style={styles.SaveButtonText}>Salvar</Text>
-                    </TouchableOpacity>
+                )}
+                {Visualmessage && (
+                  <View style={styles.MessageContent}>
+                    <Text style={styles.MessageText}>{message}</Text>
                   </View>
-                </>
-              )}
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Nova Tarefa</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newTask.name}
+                  onChangeText={(text) =>
+                    setNewTask({ ...newTask, name: text })
+                  }
+                  placeholder="Task Name"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={newTask.desc}
+                  onChangeText={(text) =>
+                    setNewTask({ ...newTask, desc: text })
+                  }
+                  placeholder="Description"
+                  maxLength={descMaxLength}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={newTask.initDate}
+                  onChangeText={(formatted) =>
+                    setNewTask({ ...newTask, initDate: formatted })
+                  }
+                  placeholder="Start Date"
+                  style={styles.input}
+                />
+                <TextInputMask
+                  type={"datetime"}
+                  options={{
+                    format: "DD/MM/YYYY",
+                  }}
+                  value={newTask.endDate}
+                  onChangeText={(formatted) =>
+                    setNewTask({ ...newTask, endDate: formatted })
+                  }
+                  placeholder="End Date"
+                  style={styles.input}
+                />
+                <Picker
+                  selectedValue={selectedService}
+                  onValueChange={setSelectedService}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Selececione um serviço" value={null} />
+                  {services.map((service) => (
+                    <Picker.Item
+                      key={service.id}
+                      label={service.name}
+                      value={service.id}
+                    />
+                  ))}
+                </Picker>
+                <Picker
+                  selectedValue={selectedTeamMember}
+                  onValueChange={setSelectedTeamMember}
+                  style={styles.picker}
+                >
+                  <Picker.Item
+                    label="Selececione um Funcionario"
+                    value={null}
+                  />
+                  {team.map((member) => (
+                    <Picker.Item
+                      key={member.id}
+                      label={member.name}
+                      value={member.id}
+                    />
+                  ))}
+                </Picker>
+                <View
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                  }}
+                >
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={() => addTask(newTask)}
+                  >
+                    <Text style={styles.SaveButtonText}>Salvar</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -781,7 +785,7 @@ export default function Home() {
                 <Text style={styles.SaveButtonText}>Aplicar Filtro</Text>
               </TouchableOpacity>
             </View>
-            
+
           </View>
         </View>
       </Modal>
@@ -894,11 +898,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
   },
-  taskTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
+  // taskTitle: {
+  //   fontSize: 16,
+  //   fontWeight: "bold",
+  //   marginBottom: 5,
+  // },
   picker: {
     height: 50,
     marginVertical: 10,
@@ -965,5 +969,33 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  taskCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  taskTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 8,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: "#ddd",
+    marginVertical: 8,
+  },
+  cardDetails: {
+    marginTop: 8,
   },
 });

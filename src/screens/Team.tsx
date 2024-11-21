@@ -154,10 +154,13 @@ const TeamManagementPage = () => {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
+      style={styles.memberCard}
       onPress={() => openEditMemberModal(item)}
-      style={styles.memberItem}
     >
-      <Text>{item.name}</Text>
+      <Text style={styles.memberName}>{item.name}</Text>
+      <Text style={styles.memberInfo}>Email: {item.email || "Não informado"}</Text>
+      <Text style={styles.memberInfo}>CPF: {item.cpf || "Não informado"}</Text>
+      <Text style={styles.memberInfo}>Telefone: {item.phone || "Não informado"}</Text>
     </TouchableOpacity>
   );
 
@@ -187,12 +190,12 @@ const TeamManagementPage = () => {
       .sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { numeric: true })
       );
-  
+
     setFilteredTeam(filtered);
     setHasResults(filtered.length > 0); // Define se há resultados
   }, [text, team]);
-  
-  
+
+
 
   return (
     <SafeAreaView style={styles.MainContainer}>
@@ -638,5 +641,26 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  memberCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  memberName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 8,
+  },
+  memberInfo: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
   },
 });
